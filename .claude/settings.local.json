@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:zenodo.org)",
+      "WebFetch(domain:data.gesis.org)",
+      "WebFetch(domain:doi.org)",
+      "WebFetch(domain:search.gesis.org)",
+      "WebFetch(domain:api.gesis.org)",
+      "Bash(curl:*)",
+      "Bash(zcat:*)",
+      "Bash(gzcat:*)",
+      "Bash(python -c:*)",
+      "Bash(pip show:*)"
+    ]
+  }
+}
