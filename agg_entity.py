@@ -13,6 +13,8 @@ Output schema (entity.parquet):
   total_likes             int64    sum of likes for tweets mentioning this entity
   total_shares            int64    sum of shares for tweets mentioning this entity
   post_count              int64    count of (tweet × entity) pairs in the group
+  redacted                bool     True if the entity name was replaced by a redaction token
+  classified              bool     True if the entity is a named entity (not 'Other' or 'None')
 
 The compound primary key is (entity, year_month).  Only the top TOP_N_ENTITIES
 entities per month by unique tweet count are included.  A tweet that mentions
@@ -537,6 +539,9 @@ def main() -> None:
                  len(dirty), ", ".join(f"{k!r} → {v}" for k, v in redaction_map.items()))
         print(f"Redacted {len(dirty)} dirty entities: "
               + ", ".join(f"{k!r} → {v}" for k, v in redaction_map.items()))
+
+    df["redacted"]    = df["entity"].isin(set(redaction_map.values()))
+    df["classified"]  = ~df["entity"].isin({"Other", "None"})
 
     df.to_parquet(output_path, index=False)
     _write_redactions(redaction_map, output_dir, log)

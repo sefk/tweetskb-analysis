@@ -11,6 +11,7 @@ Usage:
     pytest agg_date_test.py -v                 # verbose output
 """
 
+import hashlib
 import multiprocessing as mp
 import sys
 from pathlib import Path
@@ -18,6 +19,7 @@ from pathlib import Path
 import pandas as pd
 import pyarrow.parquet as pq
 import pytest
+from better_profanity import profanity
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -91,7 +93,19 @@ def output_df(month, raw_data):
     rows = process_month((month, tweets_path, entities_path, slot_queue, stop_event))
     manager.shutdown()
 
-    return pd.DataFrame(rows)
+    df = pd.DataFrame(rows)
+
+    # Mirror main()'s redaction step so the fixture matches the real output schema.
+    dirty = {e for e in df["entity"].unique() if profanity.contains_profanity(e)}
+    redaction_map = {
+        e: f"[REDACTED_{hashlib.md5(e.encode()).hexdigest()[:6]}]" for e in dirty
+    }
+    if redaction_map:
+        df["entity"] = df["entity"].replace(redaction_map)
+    df["redacted"]   = df["entity"].isin(set(redaction_map.values()))
+    df["classified"] = ~df["entity"].isin({"Other", "None"})
+
+    return df
 
 
 # ---------------------------------------------------------------------------
@@ -152,13 +166,57 @@ def test_year_month_field(output_df, month):
     assert (output_df["year_month"] == month).all()
 
 
+def test_redacted_column_is_bool(output_df):
+    """The redacted column must exist and contain only boolean values."""
+    assert "redacted" in output_df.columns
+    assert output_df["redacted"].dtype == bool
+
+
+def test_redacted_false_for_clean_entities(output_df):
+    """Entities that are not redaction tokens must have redacted=False."""
+    clean_mask = ~output_df["entity"].str.startswith("[REDACTED_")
+    assert not output_df.loc[clean_mask, "redacted"].any(), (
+        "redacted=True found for entities that are not redaction tokens"
+    )
+
+
+def test_redacted_true_for_redacted_entities(output_df):
+    """Entities that are redaction tokens must have redacted=True."""
+    redacted_mask = output_df["entity"].str.startswith("[REDACTED_")
+    assert output_df.loc[redacted_mask, "redacted"].all(), (
+        "redacted=False found for entities that are redaction tokens"
+    )
+
+
+def test_classified_column_is_bool(output_df):
+    """The classified column must exist and contain only boolean values."""
+    assert "classified" in output_df.columns
+    assert output_df["classified"].dtype == bool
+
+
+def test_classified_false_for_other_and_none(output_df):
+    """'Other' and 'None' entities must have classified=False."""
+    sentinel_mask = output_df["entity"].isin({"Other", "None"})
+    assert not output_df.loc[sentinel_mask, "classified"].any(), (
+        "classified=True found for 'Other' or 'None' entity"
+    )
+
+
+def test_classified_true_for_named_entities(output_df):
+    """All entities that are not 'Other' or 'None' must have classified=True."""
+    named_mask = ~output_df["entity"].isin({"Other", "None"})
+    assert output_df.loc[named_mask, "classified"].all(), (
+        "classified=False found for a named entity"
+    )
+
+
 # ---------------------------------------------------------------------------
 # Entity membership tests
 # ---------------------------------------------------------------------------
 
 def test_named_entities_are_top(output_df, top_entities):
-    """Every entity other than 'Other' and 'None' must be a top-N entity."""
-    named = set(output_df["entity"].unique()) - {"Other", "None"}
+    """Every non-redacted entity other than 'Other' and 'None' must be a top-N entity."""
+    named = set(output_df.loc[~output_df["redacted"], "entity"].unique()) - {"Other", "None"}
     not_top = named - top_entities
     assert not not_top, (
         f"Entities in output not in top-{TOP_N_ENTITIES}: {not_top}"
