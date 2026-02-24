@@ -10,7 +10,17 @@
       "Bash(zcat:*)",
       "Bash(gzcat:*)",
       "Bash(python -c:*)",
-      "Bash(pip show:*)"
+      "Bash(pip show:*)",
+      "Bash(head:*)",
+      "Bash($PYTHON:*)",
+      "Bash(tail:*)",
+      "Bash(ls:*)",
+      "Bash(python3:*)",
+      "Bash(.venv/bin/python3:*)",
+      "Bash(.venv/bin/pytest:*)",
+      "Bash(.venv/bin/python:*)",
+      "Bash(tee:*)",
+      "Bash(pytest:*)"
     ]
   }
 }
