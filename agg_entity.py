@@ -28,9 +28,9 @@ Performance & memory:
     month size.
 
 Checkpointing:
-  - Each completed month is written immediately to {output}/checkpoints/YYYY-MM.parquet.
-  - On restart, months with existing checkpoints are skipped automatically.
-  - Pass --no-resume to ignore existing checkpoints and reprocess everything.
+  - Each completed month is written immediately to {output}/checkpoints_entity/YYYY-MM.parquet.
+  - On restart, months with existing checkpoints_entity are skipped automatically.
+  - Pass --no-resume to ignore existing checkpoints_entity and reprocess everything.
 """
 
 import argparse
@@ -364,12 +364,12 @@ def parse_args() -> argparse.Namespace:
         default=None,
         metavar="DIR",
         help="Directory for per-month checkpoint files "
-             "(default: {output}/checkpoints)",
+             "(default: {output}/checkpoints_entity)",
     )
     parser.add_argument(
         "--no-resume",
         action="store_true",
-        help="Ignore existing checkpoints and reprocess all months.",
+        help="Ignore existing checkpoints_entity and reprocess all months.",
     )
     return parser.parse_args()
 
@@ -400,7 +400,7 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / "entity.parquet"
 
-    checkpoint_dir = Path(args.checkpoint_dir) if args.checkpoint_dir else output_dir / "checkpoints"
+    checkpoint_dir = Path(args.checkpoint_dir) if args.checkpoint_dir else output_dir / "checkpoints_entity"
 
     jobs = discover_jobs(tweets_files)
     if not jobs:
@@ -409,7 +409,7 @@ def main() -> None:
         log.error(msg)
         sys.exit(1)
 
-    # --- Load existing checkpoints (unless --no-resume) ---
+    # --- Load existing checkpoints_entity (unless --no-resume) ---
     checkpoint_rows: list = []
     completed_months: set = set()
     if not args.no_resume and checkpoint_dir.exists():
