@@ -81,37 +81,71 @@ month_2018-04.n3.gz — 18,665,803 tweets, 16,955,536 entities, 14,701,016 menti
 month_2018-05.n3.gz — 19,442,182 tweets, 17,824,912 entities, 15,705,321 mentions (349.9s)
 ```
 
-## Step 3: Aggregation
+## Step 3: Generate Tables
 
-Aggregate the per-month Parquet files into a single analysis-ready dataset.
+Generate per-date aggregation tables from the per-month Parquet files.
 
 ```bash
-python aggregate_tweetskb.py [INPUT ...] [-o DIR]
+python agg_date.py [INPUT ...] [-o DIR]
 ```
+
+
+```bash
+# full dataset — reads tweetskb_ready/, writes tweetskb_tables/date.parquet
+python agg_date.py
+
+# custom input directory
+python agg_date.py /Volumes/ext1/tweetskb_ready -o /Volumes/ext1/tweetskb_tables
+
+# single month (useful for testing)
+python agg_date.py tweetskb_ready/month_2020-03_tweets.parquet -o /tmp/test
+
+# explicit list of months
+python agg_date.py tweetskb_ready/month_2020-{01,02,03}_tweets.parquet -o results/
+```
+
+The script reads the `_tweets.parquet` and `_mentions.parquet` files from the
+input and writes a single `date.parquet` to the output directory. It
+processes all months in parallel across performance cores and streams each
+month in batches to keep memory usage bounded.
+
+### Script features
+
+**Command-line options.** The positional `INPUT` argument accepts either a
+directory (all `month_*_tweets.parquet` files are discovered automatically) or
+an explicit list of files (useful for one-month test runs or custom subsets).
+`-o / --output` sets the output directory and is created if it does not exist.
 
 | Argument | Default | Description |
 |----------|---------|-------------|
 | `INPUT` | `tweetskb_ready` | Input directory **or** one or more `_tweets.parquet` files |
-| `-o DIR` | `tweetskb_agg` | Output directory; `tweetskb_agg.parquet` is written inside it |
+| `-o DIR` | `tweetskb_tables` | Output directory; `date.parquet` is written inside it |
 
-```bash
-# full dataset — reads tweetskb_ready/, writes tweetskb_agg/tweetskb_agg.parquet
-python aggregate_tweetskb.py
+**Logging and status reporting.** Every run appends structured log lines to a
+`.log` file that lives alongside the script (`agg_date.log`, etc.). Each line
+includes a timestamp, PID, and severity level; a `===` separator marks the
+start of each invocation. Key events — run start with input/output paths,
+per-month progress, any skipped or failed months, and a final summary (row
+count, date range, post/like/share totals) — are all captured. `tqdm` shows
+two levels of live progress bars: an overall month-level bar at position 0 and
+per-worker batch-level bars at positions 1–N, managed via a shared slot queue
+so bars never collide. On completion a summary and a 16-row sample are printed
+to stdout.
 
-# custom input directory
-python aggregate_tweetskb.py /Volumes/ext1/tweetskb_ready -o /Volumes/ext1/tweetskb_agg
+**Multiprocessing.** A `ProcessPoolExecutor` dispatches one month per worker.
+Worker count defaults to the number of performance cores
+(`sysctl -n hw.perflevel0.logicalcpu` on Apple Silicon, `os.cpu_count()`
+elsewhere). Each worker streams its tweets file in 1 M-row batches via
+`pq.ParquetFile.iter_batches()`, keeping per-worker peak RAM well under 200 MB
+regardless of month size.
 
-# single month (useful for testing)
-python aggregate_tweetskb.py tweetskb_ready/month_2020-03_tweets.parquet -o /tmp/test
-
-# explicit list of months
-python aggregate_tweetskb.py tweetskb_ready/month_2020-{01,02,03}_tweets.parquet -o results/
-```
-
-The script reads the `_tweets.parquet` and `_mentions.parquet` files from the
-input and writes a single `tweetskb_agg.parquet` to the output directory. It
-processes all months in parallel across performance cores and streams each
-month in batches to keep memory usage bounded.
+**Dirty-word redaction.** After aggregation, all unique entity names are
+checked with `better_profanity`. Each flagged entity is replaced with a
+deterministic token of the form `[REDACTED_<6-char MD5>]` derived from the
+original text. Using a hash rather than a generic placeholder keeps each
+dirty entity distinct (preserving the top-100 entity cardinality) and makes
+the mapping reproducible across runs. Redacted entities and their tokens are
+printed to stdout and logged at INFO level.
 
 ### Output schema
 

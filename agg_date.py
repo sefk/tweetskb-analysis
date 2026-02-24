@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-aggregate_tweetskb.py
+agg_date.py
 
 Reads per-month Parquet files from tweetskb_ready/ and produces a single
 aggregated dataset for analysis with pandas and plotly.
 
-Output schema (tweetskb_agg.parquet):
+Output schema (date.parquet):
   year_month              str      "YYYY-MM"  — primary key component
   positive_sentiment      float32  emotion intensity: 0.0 | 0.25 | 0.5 | 0.75 | 1.0
   negative_sentiment      float32  emotion intensity: 0.0 | 0.25 | 0.5 | 0.75 | 1.0
@@ -47,7 +47,7 @@ from better_profanity import profanity
 from tqdm import tqdm
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-LOG_FILE = SCRIPT_DIR / "aggregate_tweetskb.log"
+LOG_FILE = SCRIPT_DIR / "agg_date.log"
 
 # Rows read from the tweets parquet per batch.  At ~50–70 bytes/row in RAM
 # after pandas conversion this keeps each batch under ~70 MB.
@@ -259,10 +259,10 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "-o", "--output",
-        default="tweetskb_agg",
+        default="tweetskb_tables",
         metavar="DIR",
-        help="Output directory; tweetskb_agg.parquet is written inside it "
-             "(default: tweetskb_agg)",
+        help="Output directory; date.parquet is written inside it "
+             "(default: tweetskb_tables)",
     )
     return parser.parse_args()
 
@@ -291,7 +291,7 @@ def main() -> None:
 
     output_dir = Path(args.output)
     output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / "tweetskb_agg.parquet"
+    output_path = output_dir / "date.parquet"
 
     jobs = discover_jobs(tweets_files)
     if not jobs:
