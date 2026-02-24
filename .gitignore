@@ -4,3 +4,4 @@ tweetskb_ready
 __pycache__
 testout
 *.log
+.ipynb_checkpoints/
