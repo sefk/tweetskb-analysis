@@ -83,33 +83,12 @@ month_2018-05.n3.gz — 19,442,182 tweets, 17,824,912 entities, 15,705,321 menti
 
 ## Step 3: Generate Tables
 
-Generate per-date aggregation tables from the per-month Parquet files.
-
-```bash
-python agg_date.py [INPUT ...] [-o DIR]
-```
-
-
-```bash
-# full dataset — reads tweetskb_ready/, writes tweetskb_tables/date.parquet
-python agg_date.py
-
-# custom input directory
-python agg_date.py /Volumes/ext1/tweetskb_ready -o /Volumes/ext1/tweetskb_tables
-
-# single month (useful for testing)
-python agg_date.py tweetskb_ready/month_2020-03_tweets.parquet -o /tmp/test
-
-# explicit list of months
-python agg_date.py tweetskb_ready/month_2020-{01,02,03}_tweets.parquet -o results/
-```
-
-The script reads the `_tweets.parquet` and `_mentions.parquet` files from the
-input and writes a single `date.parquet` to the output directory. It
-processes all months in parallel across performance cores and streams each
-month in batches to keep memory usage bounded.
+Two scripts produce analysis-ready Parquet tables from the per-month files in
+`tweetskb_ready/`. Both write their output to `tweetskb_tables/` by default.
 
 ### Script features
+
+All aggregation scripts share the following features.
 
 **Command-line options.** The positional `INPUT` argument accepts either a
 directory (all `month_*_tweets.parquet` files are discovered automatically) or
@@ -119,18 +98,18 @@ an explicit list of files (useful for one-month test runs or custom subsets).
 | Argument | Default | Description |
 |----------|---------|-------------|
 | `INPUT` | `tweetskb_ready` | Input directory **or** one or more `_tweets.parquet` files |
-| `-o DIR` | `tweetskb_tables` | Output directory; `date.parquet` is written inside it |
+| `-o DIR` | `tweetskb_tables` | Output directory |
 
 **Logging and status reporting.** Every run appends structured log lines to a
-`.log` file that lives alongside the script (`agg_date.log`, etc.). Each line
-includes a timestamp, PID, and severity level; a `===` separator marks the
-start of each invocation. Key events — run start with input/output paths,
-per-month progress, any skipped or failed months, and a final summary (row
-count, date range, post/like/share totals) — are all captured. `tqdm` shows
-two levels of live progress bars: an overall month-level bar at position 0 and
-per-worker batch-level bars at positions 1–N, managed via a shared slot queue
-so bars never collide. On completion a summary and a 16-row sample are printed
-to stdout.
+`.log` file that lives alongside the script (`agg_date.log`, `agg_entity.log`,
+etc.). Each line includes a timestamp, PID, and severity level; a `===`
+separator marks the start of each invocation. Key events — run start with
+input/output paths, per-month progress, any skipped or failed months, and a
+final summary (row count, date range, post/like/share totals) — are all
+captured. `tqdm` shows two levels of live progress bars: an overall month-level
+bar at position 0 and per-worker batch-level bars at positions 1–N, managed via
+a shared slot queue so bars never collide. On completion a summary and a 16-row
+sample are printed to stdout.
 
 **Multiprocessing.** A `ProcessPoolExecutor` dispatches one month per worker.
 Worker count defaults to the number of performance cores
@@ -147,50 +126,82 @@ dirty entity distinct (preserving the top-100 entity cardinality) and makes
 the mapping reproducible across runs. Redacted entities and their tokens are
 printed to stdout and logged at INFO level.
 
-### Output schema
+### agg_date.py
 
-The compound primary key is `(year_month, positive_sentiment,
-negative_sentiment, has_mentions)`, giving at most 50 rows per month
-(5 × 5 × 2 combinations that actually appear in the data).
+Produces one row per `(year_month, positive_sentiment, negative_sentiment,
+entity)` combination — at most 2,500 rows per month (5 × 5 sentiment levels ×
+100 top entities).  Useful for time-series charts where date is the primary
+axis.
+
+```bash
+python agg_date.py [INPUT ...] [-o DIR]
+```
+
+```bash
+# full dataset — reads tweetskb_ready/, writes tweetskb_tables/date.parquet
+python agg_date.py
+
+# custom input directory
+python agg_date.py /Volumes/ext1/tweetskb_ready -o /Volumes/ext1/tweetskb_tables
+
+# single month (useful for testing)
+python agg_date.py tweetskb_ready/month_2020-03_tweets.parquet -o /tmp/test
+
+# explicit list of months
+python agg_date.py tweetskb_ready/month_2020-{01,02,03}_tweets.parquet -o results/
+```
+
+#### Output schema — date.parquet
+
+Compound primary key: `(year_month, positive_sentiment, negative_sentiment, entity)`.
 
 | Column | Type | Description |
 |--------|------|-------------|
 | `year_month` | str | `"YYYY-MM"` derived from the source filename |
 | `positive_sentiment` | float32 | Quantized intensity: 0.0 \| 0.25 \| 0.5 \| 0.75 \| 1.0 |
 | `negative_sentiment` | float32 | Quantized intensity: 0.0 \| 0.25 \| 0.5 \| 0.75 \| 1.0 |
-| `has_mentions` | bool | Tweet ID appears in the month's mentions table |
-| `total_likes` | int64 | Sum of like counts for the group |
-| `total_shares` | int64 | Sum of share counts for the group |
-| `post_count` | int64 | Number of tweets in the group |
+| `entity` | str | Entity name (top 100 per month by unique tweet count) |
+| `total_likes` | int64 | Sum of likes for the group |
+| `total_shares` | int64 | Sum of shares for the group |
+| `post_count` | int64 | Number of (tweet × entity) pairs in the group |
 
-### Design decisions
+### agg_entity.py
 
-**Sentiment granularity.** The `positive_emotion` and `negative_emotion`
-values in TweetsKB are already quantized to exactly five discrete levels
-(0.0, 0.25, 0.5, 0.75, 1.0) — confirmed by inspecting value distributions
-across multiple months spanning the full dataset. These levels are used
-directly as dimension values rather than collapsing to a boolean, preserving
-meaningful intensity information. A rounding step (`×4 → round → ÷4`) snaps
-any floating-point noise to the canonical values before grouping.
+Produces one row per `(entity, year_month)` pair — one row for every entity
+that appears in the month's entities file.  Sentiment columns are means across
+all tweets in the group rather than discrete levels.  Useful for entity-focused
+analysis where you want a single engagement and sentiment summary per entity per
+month.
 
-**Mentions as a boolean dimension.** Whether a tweet has any mentions is
-captured as a `bool` rather than a count, making it practical as a grouping
-dimension. The full mention detail remains available in the per-month
-`_mentions.parquet` files.
+```bash
+python agg_entity.py [INPUT ...] [-o DIR]
+```
 
-**Performance cores only.** Worker count is set via `sysctl -n
-hw.perflevel0.logicalcpu` on macOS (P-cores only on Apple Silicon), falling
-back to `os.cpu_count()` elsewhere. Each month is dispatched to a
-`ProcessPoolExecutor` worker; results are tiny aggregated frames so
-inter-process communication overhead is negligible.
+```bash
+# full dataset — reads tweetskb_ready/, writes tweetskb_tables/entity.parquet
+python agg_entity.py
 
-**Streaming batches for memory efficiency.** Each worker reads the tweets
-file in 1 M-row batches via `pq.ParquetFile.iter_batches()`, keeping
-per-worker RAM well under 200 MB even for the largest months (~20 M tweets).
-The mentions set is loaded in one shot (mentions files are much smaller) and
-held in a Python `set` for O(1) per-tweet lookup.
+# custom input directory
+python agg_entity.py /Volumes/ext1/tweetskb_ready -o /Volumes/ext1/tweetskb_tables
 
-**Progress visibility.** `tqdm` shows two levels of bars: an overall
-month-level bar at position 0, and per-worker batch-level bars at positions
-1–N using a slot queue — the same pattern used in `convert_n3_to_parquet.py`.
+# single month (useful for testing)
+python agg_entity.py tweetskb_ready/month_2020-03_tweets.parquet -o /tmp/test
+
+# explicit list of months
+python agg_entity.py tweetskb_ready/month_2020-{01,02,03}_tweets.parquet -o results/
+```
+
+#### Output schema — entity.parquet
+
+Compound primary key: `(entity, year_month)`.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `entity` | str | Entity name |
+| `year_month` | str | `"YYYY-MM"` derived from the source filename |
+| `positive_sentiment` | float32 | Mean positive emotion across tweets mentioning this entity |
+| `negative_sentiment` | float32 | Mean negative emotion across tweets mentioning this entity |
+| `total_likes` | int64 | Sum of likes for tweets mentioning this entity |
+| `total_shares` | int64 | Sum of shares for tweets mentioning this entity |
+| `post_count` | int64 | Number of (tweet × entity) pairs in the group |
 
