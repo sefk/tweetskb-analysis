@@ -1,4 +1,6 @@
-pandas
-pyarrow
+better-profanity
 notebook
+pandas
+plotly
+pyarrow
 tqdm

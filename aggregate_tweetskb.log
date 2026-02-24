@@ -1,0 +1,406 @@
+2026-02-23 17:31:58,136 [72082] INFO ============================================================
+2026-02-23 17:31:58,136 [72082] INFO Starting aggregation run
+2026-02-23 17:31:58,137 [72082] INFO input=['/Volumes/ext1/tweetskb_ready/month_2020-03_tweets.parquet']  output=/tmp/tweetskb_test3
+2026-02-23 17:31:58,143 [72082] INFO Found 1 months, 8 workers, batch_size=1000000
+2026-02-23 17:31:58,874 [72127] INFO 2020-03 — starting
+2026-02-23 17:32:04,190 [72127] INFO 2020-03 — top-100 entities found, 3446145 (tweet, entity) pairs
+2026-02-23 17:32:19,848 [72127] INFO 2020-03 — done in 21.0s: 3446145 (tweet, entity) pairs, 2263 output rows
+2026-02-23 17:32:19,983 [72082] INFO Removed 3 dirty entities (66 rows dropped): asshole, lmfao, nigga
+2026-02-23 17:32:19,986 [72082] INFO Done. 2197 rows → /tmp/tweetskb_test3/tweetskb_agg.parquet  |  range 2020-03–2020-03  |  3,361,797 posts  |  497,414,526 likes  |  144,993,417 shares
+2026-02-23 17:40:01,750 [73632] INFO ============================================================
+2026-02-23 17:40:01,750 [73632] INFO Starting aggregation run
+2026-02-23 17:40:01,750 [73632] INFO input=['/Volumes/ext1/tweetskb_ready/month_2020-03_tweets.parquet']  output=/tmp/tweetskb_test4
+2026-02-23 17:40:01,756 [73632] INFO Found 1 months, 8 workers, batch_size=1000000
+2026-02-23 17:40:02,475 [73691] INFO 2020-03 — starting
+2026-02-23 17:40:07,797 [73691] INFO 2020-03 — top-100 entities found, 3446145 (tweet, entity) pairs
+2026-02-23 17:40:23,617 [73691] INFO 2020-03 — done in 21.1s: 3446145 (tweet, entity) pairs, 2263 output rows
+2026-02-23 17:40:23,766 [73632] INFO Redacted 3 dirty entities: 'asshole' → [REDACTED_0b9a54], 'nigga' → [REDACTED_9271d6], 'lmfao' → [REDACTED_d8a157]
+2026-02-23 17:40:23,771 [73632] INFO Done. 2263 rows → /tmp/tweetskb_test4/tweetskb_agg.parquet  |  range 2020-03–2020-03  |  3,446,145 posts  |  511,845,287 likes  |  148,531,871 shares
+2026-02-23 17:48:26,079 [74594] INFO ============================================================
+2026-02-23 17:48:26,079 [74594] INFO Starting aggregation run
+2026-02-23 17:48:26,079 [74594] INFO input=['tweetskb_ready']  output=tweetskb_agg
+2026-02-23 17:48:26,080 [74594] ERROR No _tweets.parquet files found in ['tweetskb_ready']
+2026-02-23 17:48:49,724 [74881] INFO ============================================================
+2026-02-23 17:48:49,724 [74881] INFO Starting aggregation run
+2026-02-23 17:48:49,724 [74881] INFO input=['tweetskb_ready']  output=tweetskb_agg
+2026-02-23 17:48:49,731 [74881] INFO Found 126 months, 8 workers, batch_size=1000000
+2026-02-23 17:48:50,466 [74886] INFO 2013-01 — starting
+2026-02-23 17:48:50,466 [74885] INFO 2013-02 — starting
+2026-02-23 17:48:50,469 [74887] INFO 2013-03 — starting
+2026-02-23 17:48:50,471 [74892] INFO 2013-04 — starting
+2026-02-23 17:48:50,473 [74888] INFO 2013-05 — starting
+2026-02-23 17:48:50,476 [74889] INFO 2013-06 — starting
+2026-02-23 17:48:50,479 [74890] INFO 2013-07 — starting
+2026-02-23 17:48:50,484 [74891] INFO 2013-08 — starting
+2026-02-23 17:48:50,497 [74887] INFO 2013-03 — top-100 entities found, 0 (tweet, entity) pairs
+2026-02-23 17:48:50,502 [74887] INFO 2013-03 — done in 0.0s: 0 (tweet, entity) pairs, 0 output rows
+2026-02-23 17:48:50,504 [74887] INFO 2013-09 — starting
+2026-02-23 17:48:50,509 [74886] INFO 2013-01 — top-100 entities found, 6822 (tweet, entity) pairs
+2026-02-23 17:48:50,512 [74885] INFO 2013-02 — top-100 entities found, 9157 (tweet, entity) pairs
+2026-02-23 17:48:50,613 [74886] INFO 2013-01 — done in 0.1s: 6822 (tweet, entity) pairs, 859 output rows
+2026-02-23 17:48:50,624 [74885] INFO 2013-02 — done in 0.2s: 9157 (tweet, entity) pairs, 897 output rows
+2026-02-23 17:48:50,627 [74886] INFO 2013-10 — starting
+2026-02-23 17:48:50,633 [74885] INFO 2013-11 — starting
+2026-02-23 17:48:59,173 [74886] INFO 2013-10 — top-100 entities found, 3736850 (tweet, entity) pairs
+2026-02-23 17:49:00,767 [74891] INFO 2013-08 — top-100 entities found, 5439797 (tweet, entity) pairs
+2026-02-23 17:49:01,106 [74888] INFO 2013-05 — top-100 entities found, 5355630 (tweet, entity) pairs
+2026-02-23 17:49:01,801 [74892] INFO 2013-04 — top-100 entities found, 5381517 (tweet, entity) pairs
+2026-02-23 17:49:02,652 [74889] INFO 2013-06 — top-100 entities found, 6389778 (tweet, entity) pairs
+2026-02-23 17:49:03,069 [74885] INFO 2013-11 — top-100 entities found, 5958690 (tweet, entity) pairs
+2026-02-23 17:49:06,603 [74887] INFO 2013-09 — top-100 entities found, 6334550 (tweet, entity) pairs
+2026-02-23 17:49:08,171 [74890] INFO 2013-07 — top-100 entities found, 7369002 (tweet, entity) pairs
+2026-02-23 17:49:26,037 [74886] INFO 2013-10 — done in 35.4s: 3736850 (tweet, entity) pairs, 2196 output rows
+2026-02-23 17:49:26,052 [74886] INFO 2013-12 — starting
+2026-02-23 17:49:33,756 [74886] INFO 2013-12 — top-100 entities found, 4614762 (tweet, entity) pairs
+2026-02-23 17:49:50,285 [74891] INFO 2013-08 — done in 59.8s: 5439797 (tweet, entity) pairs, 2246 output rows
+2026-02-23 17:49:50,292 [74891] INFO 2014-01 — starting
+2026-02-23 17:49:52,126 [74888] INFO 2013-05 — done in 61.7s: 5355630 (tweet, entity) pairs, 2216 output rows
+2026-02-23 17:49:52,175 [74888] INFO 2014-02 — starting
+2026-02-23 17:49:56,325 [74892] INFO 2013-04 — done in 65.9s: 5381517 (tweet, entity) pairs, 2221 output rows
+2026-02-23 17:49:56,350 [74892] INFO 2014-03 — starting
+2026-02-23 17:50:04,449 [74888] INFO 2014-02 — top-100 entities found, 5414367 (tweet, entity) pairs
+2026-02-23 17:50:05,481 [74885] INFO 2013-11 — done in 74.8s: 5958690 (tweet, entity) pairs, 2230 output rows
+2026-02-23 17:50:05,490 [74885] INFO 2014-04 — starting
+2026-02-23 17:50:05,610 [74891] INFO 2014-01 — top-100 entities found, 6181612 (tweet, entity) pairs
+2026-02-23 17:50:06,474 [74892] INFO 2014-03 — top-100 entities found, 5704218 (tweet, entity) pairs
+2026-02-23 17:50:08,515 [74889] INFO 2013-06 — done in 78.0s: 6389778 (tweet, entity) pairs, 2239 output rows
+2026-02-23 17:50:08,528 [74889] INFO 2014-05 — starting
+2026-02-23 17:50:14,480 [74887] INFO 2013-09 — done in 84.0s: 6334550 (tweet, entity) pairs, 2247 output rows
+2026-02-23 17:50:14,491 [74887] INFO 2014-06 — starting
+2026-02-23 17:50:16,259 [74885] INFO 2014-04 — top-100 entities found, 5474125 (tweet, entity) pairs
+2026-02-23 17:50:19,416 [74889] INFO 2014-05 — top-100 entities found, 5461410 (tweet, entity) pairs
+2026-02-23 17:50:20,558 [74886] INFO 2013-12 — done in 54.5s: 4614762 (tweet, entity) pairs, 2181 output rows
+2026-02-23 17:50:20,568 [74886] INFO 2014-07 — starting
+2026-02-23 17:50:24,401 [74887] INFO 2014-06 — top-100 entities found, 5226471 (tweet, entity) pairs
+2026-02-23 17:50:29,383 [74890] INFO 2013-07 — done in 98.9s: 7369002 (tweet, entity) pairs, 2279 output rows
+2026-02-23 17:50:29,393 [74890] INFO 2014-08 — starting
+2026-02-23 17:50:32,697 [74886] INFO 2014-07 — top-100 entities found, 6006170 (tweet, entity) pairs
+2026-02-23 17:50:41,410 [74890] INFO 2014-08 — top-100 entities found, 5746354 (tweet, entity) pairs
+2026-02-23 17:50:49,951 [74888] INFO 2014-02 — done in 57.8s: 5414367 (tweet, entity) pairs, 2218 output rows
+2026-02-23 17:50:49,959 [74888] INFO 2014-09 — starting
+2026-02-23 17:50:51,985 [74892] INFO 2014-03 — done in 55.6s: 5704218 (tweet, entity) pairs, 2186 output rows
+2026-02-23 17:50:52,000 [74892] INFO 2014-10 — starting
+2026-02-23 17:50:58,478 [74891] INFO 2014-01 — done in 68.2s: 6181612 (tweet, entity) pairs, 2241 output rows
+2026-02-23 17:50:58,490 [74891] INFO 2014-11 — starting
+2026-02-23 17:50:59,274 [74888] INFO 2014-09 — top-100 entities found, 4832760 (tweet, entity) pairs
+2026-02-23 17:51:01,556 [74892] INFO 2014-10 — top-100 entities found, 4844666 (tweet, entity) pairs
+2026-02-23 17:51:02,391 [74885] INFO 2014-04 — done in 56.9s: 5474125 (tweet, entity) pairs, 2204 output rows
+2026-02-23 17:51:02,401 [74885] INFO 2014-12 — starting
+2026-02-23 17:51:04,615 [74887] INFO 2014-06 — done in 50.1s: 5226471 (tweet, entity) pairs, 2220 output rows
+2026-02-23 17:51:04,625 [74887] INFO 2015-01 — starting
+2026-02-23 17:51:05,793 [74889] INFO 2014-05 — done in 57.3s: 5461410 (tweet, entity) pairs, 2210 output rows
+2026-02-23 17:51:05,802 [74889] INFO 2015-02 — starting
+2026-02-23 17:51:08,311 [74891] INFO 2014-11 — top-100 entities found, 5227368 (tweet, entity) pairs
+2026-02-23 17:51:13,048 [74885] INFO 2014-12 — top-100 entities found, 5663074 (tweet, entity) pairs
+2026-02-23 17:51:15,438 [74887] INFO 2015-01 — top-100 entities found, 4876699 (tweet, entity) pairs
+2026-02-23 17:51:15,605 [74889] INFO 2015-02 — top-100 entities found, 4568648 (tweet, entity) pairs
+2026-02-23 17:51:23,337 [74886] INFO 2014-07 — done in 62.8s: 6006170 (tweet, entity) pairs, 2238 output rows
+2026-02-23 17:51:23,346 [74886] INFO 2015-03 — starting
+2026-02-23 17:51:30,543 [74890] INFO 2014-08 — done in 61.1s: 5746354 (tweet, entity) pairs, 2219 output rows
+2026-02-23 17:51:30,559 [74890] INFO 2015-04 — starting
+2026-02-23 17:51:34,394 [74886] INFO 2015-03 — top-100 entities found, 5259434 (tweet, entity) pairs
+2026-02-23 17:51:39,718 [74888] INFO 2014-09 — done in 49.8s: 4832760 (tweet, entity) pairs, 2180 output rows
+2026-02-23 17:51:39,725 [74888] INFO 2015-05 — starting
+2026-02-23 17:51:40,328 [74890] INFO 2015-04 — top-100 entities found, 4352906 (tweet, entity) pairs
+2026-02-23 17:51:42,538 [74892] INFO 2014-10 — done in 50.5s: 4844666 (tweet, entity) pairs, 2197 output rows
+2026-02-23 17:51:42,552 [74892] INFO 2015-06 — starting
+2026-02-23 17:51:48,941 [74888] INFO 2015-05 — top-100 entities found, 4206609 (tweet, entity) pairs
+2026-02-23 17:51:50,273 [74891] INFO 2014-11 — done in 51.8s: 5227368 (tweet, entity) pairs, 2167 output rows
+2026-02-23 17:51:50,284 [74891] INFO 2015-07 — starting
+2026-02-23 17:51:50,745 [74889] INFO 2015-02 — done in 44.9s: 4568648 (tweet, entity) pairs, 2162 output rows
+2026-02-23 17:51:50,756 [74889] INFO 2015-08 — starting
+2026-02-23 17:51:51,860 [74892] INFO 2015-06 — top-100 entities found, 4170072 (tweet, entity) pairs
+2026-02-23 17:51:54,925 [74885] INFO 2014-12 — done in 52.5s: 5663074 (tweet, entity) pairs, 2125 output rows
+2026-02-23 17:51:54,935 [74885] INFO 2015-09 — starting
+2026-02-23 17:51:56,308 [74887] INFO 2015-01 — done in 51.7s: 4876699 (tweet, entity) pairs, 2169 output rows
+2026-02-23 17:51:56,325 [74887] INFO 2015-10 — starting
+2026-02-23 17:52:01,309 [74891] INFO 2015-07 — top-100 entities found, 4770562 (tweet, entity) pairs
+2026-02-23 17:52:03,007 [74889] INFO 2015-08 — top-100 entities found, 6784390 (tweet, entity) pairs
+2026-02-23 17:52:05,276 [74885] INFO 2015-09 — top-100 entities found, 4096987 (tweet, entity) pairs
+2026-02-23 17:52:06,367 [74887] INFO 2015-10 — top-100 entities found, 3994670 (tweet, entity) pairs
+2026-02-23 17:52:16,618 [74890] INFO 2015-04 — done in 46.1s: 4352906 (tweet, entity) pairs, 2125 output rows
+2026-02-23 17:52:16,631 [74890] INFO 2015-11 — starting
+2026-02-23 17:52:17,482 [74886] INFO 2015-03 — done in 54.1s: 5259434 (tweet, entity) pairs, 2166 output rows
+2026-02-23 17:52:17,491 [74886] INFO 2015-12 — starting
+2026-02-23 17:52:24,629 [74888] INFO 2015-05 — done in 44.9s: 4206609 (tweet, entity) pairs, 2124 output rows
+2026-02-23 17:52:24,637 [74888] INFO 2016-01 — starting
+2026-02-23 17:52:27,028 [74890] INFO 2015-11 — top-100 entities found, 5917725 (tweet, entity) pairs
+2026-02-23 17:52:27,534 [74886] INFO 2015-12 — top-100 entities found, 5903411 (tweet, entity) pairs
+2026-02-23 17:52:27,624 [74892] INFO 2015-06 — done in 45.1s: 4170072 (tweet, entity) pairs, 2122 output rows
+2026-02-23 17:52:27,633 [74892] INFO 2016-02 — starting
+2026-02-23 17:52:34,209 [74888] INFO 2016-01 — top-100 entities found, 4018406 (tweet, entity) pairs
+2026-02-23 17:52:36,382 [74892] INFO 2016-02 — top-100 entities found, 4030489 (tweet, entity) pairs
+2026-02-23 17:52:38,587 [74885] INFO 2015-09 — done in 43.7s: 4096987 (tweet, entity) pairs, 2088 output rows
+2026-02-23 17:52:38,597 [74885] INFO 2016-03 — starting
+2026-02-23 17:52:39,707 [74891] INFO 2015-07 — done in 49.4s: 4770562 (tweet, entity) pairs, 2103 output rows
+2026-02-23 17:52:39,718 [74891] INFO 2016-04 — starting
+2026-02-23 17:52:40,795 [74887] INFO 2015-10 — done in 44.5s: 3994670 (tweet, entity) pairs, 2117 output rows
+2026-02-23 17:52:40,808 [74887] INFO 2016-05 — starting
+2026-02-23 17:52:48,323 [74889] INFO 2015-08 — done in 57.6s: 6784390 (tweet, entity) pairs, 2094 output rows
+2026-02-23 17:52:48,339 [74889] INFO 2016-06 — starting
+2026-02-23 17:52:49,116 [74885] INFO 2016-03 — top-100 entities found, 3968454 (tweet, entity) pairs
+2026-02-23 17:52:50,111 [74891] INFO 2016-04 — top-100 entities found, 3648027 (tweet, entity) pairs
+2026-02-23 17:52:51,285 [74887] INFO 2016-05 — top-100 entities found, 3592692 (tweet, entity) pairs
+2026-02-23 17:52:57,138 [74889] INFO 2016-06 — top-100 entities found, 3851501 (tweet, entity) pairs
+2026-02-23 17:53:06,447 [74890] INFO 2015-11 — done in 49.8s: 5917725 (tweet, entity) pairs, 2045 output rows
+2026-02-23 17:53:06,458 [74890] INFO 2016-07 — starting
+2026-02-23 17:53:06,493 [74886] INFO 2015-12 — done in 49.0s: 5903411 (tweet, entity) pairs, 2049 output rows
+2026-02-23 17:53:06,556 [74886] INFO 2016-08 — starting
+2026-02-23 17:53:07,766 [74888] INFO 2016-01 — done in 43.1s: 4018406 (tweet, entity) pairs, 2084 output rows
+2026-02-23 17:53:07,772 [74888] INFO 2016-09 — starting
+2026-02-23 17:53:07,779 [74892] INFO 2016-02 — done in 40.1s: 4030489 (tweet, entity) pairs, 2088 output rows
+2026-02-23 17:53:07,784 [74892] INFO 2016-10 — starting
+2026-02-23 17:53:15,064 [74886] INFO 2016-08 — top-100 entities found, 4230673 (tweet, entity) pairs
+2026-02-23 17:53:15,674 [74890] INFO 2016-07 — top-100 entities found, 4775695 (tweet, entity) pairs
+2026-02-23 17:53:15,829 [74888] INFO 2016-09 — top-100 entities found, 3242362 (tweet, entity) pairs
+2026-02-23 17:53:16,127 [74892] INFO 2016-10 — top-100 entities found, 3454664 (tweet, entity) pairs
+2026-02-23 17:53:19,156 [74891] INFO 2016-04 — done in 39.4s: 3648027 (tweet, entity) pairs, 2106 output rows
+2026-02-23 17:53:19,166 [74891] INFO 2016-11 — starting
+2026-02-23 17:53:19,624 [74885] INFO 2016-03 — done in 41.0s: 3968454 (tweet, entity) pairs, 2092 output rows
+2026-02-23 17:53:19,634 [74885] INFO 2016-12 — starting
+2026-02-23 17:53:20,190 [74887] INFO 2016-05 — done in 39.4s: 3592692 (tweet, entity) pairs, 2075 output rows
+2026-02-23 17:53:20,199 [74887] INFO 2017-01 — starting
+2026-02-23 17:53:24,816 [74891] INFO 2016-11 — top-100 entities found, 2260620 (tweet, entity) pairs
+2026-02-23 17:53:27,357 [74889] INFO 2016-06 — done in 39.0s: 3851501 (tweet, entity) pairs, 2113 output rows
+2026-02-23 17:53:27,357 [74885] INFO 2016-12 — top-100 entities found, 3237217 (tweet, entity) pairs
+2026-02-23 17:53:27,369 [74889] INFO 2017-02 — starting
+2026-02-23 17:53:28,405 [74887] INFO 2017-01 — top-100 entities found, 3470896 (tweet, entity) pairs
+2026-02-23 17:53:34,327 [74889] INFO 2017-02 — top-100 entities found, 3019463 (tweet, entity) pairs
+2026-02-23 17:53:36,385 [74891] INFO 2016-11 — done in 17.2s: 2260620 (tweet, entity) pairs, 2012 output rows
+2026-02-23 17:53:36,392 [74891] INFO 2017-03 — starting
+2026-02-23 17:53:37,430 [74888] INFO 2016-09 — done in 29.7s: 3242362 (tweet, entity) pairs, 2059 output rows
+2026-02-23 17:53:37,435 [74888] INFO 2017-04 — starting
+2026-02-23 17:53:38,967 [74892] INFO 2016-10 — done in 31.2s: 3454664 (tweet, entity) pairs, 2093 output rows
+2026-02-23 17:53:38,973 [74892] INFO 2017-05 — starting
+2026-02-23 17:53:42,481 [74886] INFO 2016-08 — done in 35.9s: 4230673 (tweet, entity) pairs, 2011 output rows
+2026-02-23 17:53:42,490 [74886] INFO 2017-06 — starting
+2026-02-23 17:53:43,924 [74891] INFO 2017-03 — top-100 entities found, 3154877 (tweet, entity) pairs
+2026-02-23 17:53:44,125 [74888] INFO 2017-04 — top-100 entities found, 2766419 (tweet, entity) pairs
+2026-02-23 17:53:46,841 [74892] INFO 2017-05 — top-100 entities found, 3953339 (tweet, entity) pairs
+2026-02-23 17:53:48,195 [74885] INFO 2016-12 — done in 28.6s: 3237217 (tweet, entity) pairs, 2068 output rows
+2026-02-23 17:53:48,203 [74885] INFO 2017-07 — starting
+2026-02-23 17:53:49,057 [74890] INFO 2016-07 — done in 42.6s: 4775695 (tweet, entity) pairs, 2056 output rows
+2026-02-23 17:53:49,068 [74890] INFO 2017-08 — starting
+2026-02-23 17:53:49,469 [74886] INFO 2017-06 — top-100 entities found, 2924548 (tweet, entity) pairs
+2026-02-23 17:53:51,337 [74887] INFO 2017-01 — done in 31.1s: 3470896 (tweet, entity) pairs, 2077 output rows
+2026-02-23 17:53:51,348 [74887] INFO 2017-09 — starting
+2026-02-23 17:53:53,209 [74889] INFO 2017-02 — done in 25.8s: 3019463 (tweet, entity) pairs, 2098 output rows
+2026-02-23 17:53:53,220 [74889] INFO 2017-10 — starting
+2026-02-23 17:53:55,597 [74885] INFO 2017-07 — top-100 entities found, 3075705 (tweet, entity) pairs
+2026-02-23 17:53:56,687 [74890] INFO 2017-08 — top-100 entities found, 3420897 (tweet, entity) pairs
+2026-02-23 17:53:58,665 [74887] INFO 2017-09 — top-100 entities found, 2753612 (tweet, entity) pairs
+2026-02-23 17:54:00,153 [74889] INFO 2017-10 — top-100 entities found, 2663187 (tweet, entity) pairs
+2026-02-23 17:54:01,177 [74888] INFO 2017-04 — done in 23.7s: 2766419 (tweet, entity) pairs, 2066 output rows
+2026-02-23 17:54:01,183 [74888] INFO 2017-11 — starting
+2026-02-23 17:54:03,411 [74888] INFO 2017-11 — top-100 entities found, 300 (tweet, entity) pairs
+2026-02-23 17:54:03,439 [74888] INFO 2017-11 — done in 2.3s: 300 (tweet, entity) pairs, 300 output rows
+2026-02-23 17:54:03,444 [74888] INFO 2017-12 — starting
+2026-02-23 17:54:04,636 [74891] INFO 2017-03 — done in 28.2s: 3154877 (tweet, entity) pairs, 2080 output rows
+2026-02-23 17:54:04,641 [74891] INFO 2018-01 — starting
+2026-02-23 17:54:05,445 [74888] INFO 2017-12 — top-100 entities found, 200 (tweet, entity) pairs
+2026-02-23 17:54:05,462 [74888] INFO 2017-12 — done in 2.0s: 200 (tweet, entity) pairs, 200 output rows
+2026-02-23 17:54:05,465 [74888] INFO 2018-02 — starting
+2026-02-23 17:54:06,453 [74886] INFO 2017-06 — done in 24.0s: 2924548 (tweet, entity) pairs, 2089 output rows
+2026-02-23 17:54:06,458 [74886] INFO 2018-03 — starting
+2026-02-23 17:54:06,802 [74891] INFO 2018-01 — top-100 entities found, 900 (tweet, entity) pairs
+2026-02-23 17:54:06,841 [74891] INFO 2018-01 — done in 2.2s: 900 (tweet, entity) pairs, 500 output rows
+2026-02-23 17:54:06,846 [74891] INFO 2018-04 — starting
+2026-02-23 17:54:06,876 [74888] INFO 2018-02 — top-100 entities found, 500 (tweet, entity) pairs
+2026-02-23 17:54:06,958 [74888] INFO 2018-02 — done in 1.5s: 500 (tweet, entity) pairs, 300 output rows
+2026-02-23 17:54:06,981 [74888] INFO 2018-05 — starting
+2026-02-23 17:54:09,251 [74886] INFO 2018-03 — top-100 entities found, 600 (tweet, entity) pairs
+2026-02-23 17:54:09,287 [74886] INFO 2018-03 — done in 2.8s: 600 (tweet, entity) pairs, 500 output rows
+2026-02-23 17:54:09,293 [74886] INFO 2018-06 — starting
+2026-02-23 17:54:12,638 [74892] INFO 2017-05 — done in 33.7s: 3953339 (tweet, entity) pairs, 2088 output rows
+2026-02-23 17:54:12,666 [74892] INFO 2018-07 — starting
+2026-02-23 17:54:13,476 [74891] INFO 2018-04 — top-100 entities found, 2705249 (tweet, entity) pairs
+2026-02-23 17:54:13,936 [74885] INFO 2017-07 — done in 25.7s: 3075705 (tweet, entity) pairs, 2078 output rows
+2026-02-23 17:54:13,941 [74885] INFO 2018-08 — starting
+2026-02-23 17:54:13,974 [74888] INFO 2018-05 — top-100 entities found, 3064582 (tweet, entity) pairs
+2026-02-23 17:54:14,616 [74887] INFO 2017-09 — done in 23.3s: 2753612 (tweet, entity) pairs, 2092 output rows
+2026-02-23 17:54:14,621 [74887] INFO 2018-09 — starting
+2026-02-23 17:54:15,222 [74889] INFO 2017-10 — done in 22.0s: 2663187 (tweet, entity) pairs, 2068 output rows
+2026-02-23 17:54:15,227 [74889] INFO 2018-10 — starting
+2026-02-23 17:54:15,915 [74890] INFO 2017-08 — done in 26.8s: 3420897 (tweet, entity) pairs, 2057 output rows
+2026-02-23 17:54:15,920 [74890] INFO 2018-11 — starting
+2026-02-23 17:54:16,265 [74886] INFO 2018-06 — top-100 entities found, 2908120 (tweet, entity) pairs
+2026-02-23 17:54:19,591 [74892] INFO 2018-07 — top-100 entities found, 2820443 (tweet, entity) pairs
+2026-02-23 17:54:20,548 [74885] INFO 2018-08 — top-100 entities found, 2715326 (tweet, entity) pairs
+2026-02-23 17:54:21,241 [74887] INFO 2018-09 — top-100 entities found, 2633406 (tweet, entity) pairs
+2026-02-23 17:54:21,942 [74889] INFO 2018-10 — top-100 entities found, 2779940 (tweet, entity) pairs
+2026-02-23 17:54:22,299 [74890] INFO 2018-11 — top-100 entities found, 2567206 (tweet, entity) pairs
+2026-02-23 17:54:27,718 [74891] INFO 2018-04 — done in 20.9s: 2705249 (tweet, entity) pairs, 2181 output rows
+2026-02-23 17:54:27,726 [74891] INFO 2018-12 — starting
+2026-02-23 17:54:29,986 [74888] INFO 2018-05 — done in 23.0s: 3064582 (tweet, entity) pairs, 2216 output rows
+2026-02-23 17:54:29,992 [74888] INFO 2019-01 — starting
+2026-02-23 17:54:31,996 [74886] INFO 2018-06 — done in 22.7s: 2908120 (tweet, entity) pairs, 2244 output rows
+2026-02-23 17:54:32,001 [74886] INFO 2019-02 — starting
+2026-02-23 17:54:32,380 [74891] INFO 2018-12 — top-100 entities found, 2050136 (tweet, entity) pairs
+2026-02-23 17:54:34,798 [74885] INFO 2018-08 — done in 20.9s: 2715326 (tweet, entity) pairs, 2222 output rows
+2026-02-23 17:54:34,805 [74885] INFO 2019-03 — starting
+2026-02-23 17:54:35,032 [74892] INFO 2018-07 — done in 22.4s: 2820443 (tweet, entity) pairs, 2263 output rows
+2026-02-23 17:54:35,039 [74892] INFO 2019-04 — starting
+2026-02-23 17:54:35,208 [74887] INFO 2018-09 — done in 20.6s: 2633406 (tweet, entity) pairs, 2214 output rows
+2026-02-23 17:54:35,241 [74887] INFO 2019-05 — starting
+2026-02-23 17:54:35,441 [74890] INFO 2018-11 — done in 19.5s: 2567206 (tweet, entity) pairs, 2241 output rows
+2026-02-23 17:54:35,446 [74890] INFO 2019-06 — starting
+2026-02-23 17:54:36,569 [74889] INFO 2018-10 — done in 21.3s: 2779940 (tweet, entity) pairs, 2237 output rows
+2026-02-23 17:54:36,574 [74888] INFO 2019-01 — top-100 entities found, 2634221 (tweet, entity) pairs
+2026-02-23 17:54:36,575 [74889] INFO 2019-07 — starting
+2026-02-23 17:54:38,585 [74886] INFO 2019-02 — top-100 entities found, 2444557 (tweet, entity) pairs
+2026-02-23 17:54:42,431 [74890] INFO 2019-06 — top-100 entities found, 2641928 (tweet, entity) pairs
+2026-02-23 17:54:42,577 [74885] INFO 2019-03 — top-100 entities found, 2760190 (tweet, entity) pairs
+2026-02-23 17:54:42,592 [74892] INFO 2019-04 — top-100 entities found, 2978996 (tweet, entity) pairs
+2026-02-23 17:54:43,015 [74887] INFO 2019-05 — top-100 entities found, 2762967 (tweet, entity) pairs
+2026-02-23 17:54:43,276 [74891] INFO 2018-12 — done in 15.6s: 2050136 (tweet, entity) pairs, 2187 output rows
+2026-02-23 17:54:43,291 [74891] INFO 2019-08 — starting
+2026-02-23 17:54:44,452 [74889] INFO 2019-07 — top-100 entities found, 2843360 (tweet, entity) pairs
+2026-02-23 17:54:50,207 [74891] INFO 2019-08 — top-100 entities found, 2875994 (tweet, entity) pairs
+2026-02-23 17:54:52,091 [74886] INFO 2019-02 — done in 20.1s: 2444557 (tweet, entity) pairs, 2248 output rows
+2026-02-23 17:54:52,098 [74886] INFO 2019-09 — starting
+2026-02-23 17:54:52,546 [74888] INFO 2019-01 — done in 22.6s: 2634221 (tweet, entity) pairs, 2249 output rows
+2026-02-23 17:54:52,554 [74888] INFO 2019-10 — starting
+2026-02-23 17:54:57,290 [74890] INFO 2019-06 — done in 21.8s: 2641928 (tweet, entity) pairs, 2268 output rows
+2026-02-23 17:54:57,299 [74890] INFO 2019-11 — starting
+2026-02-23 17:54:58,097 [74887] INFO 2019-05 — done in 22.9s: 2762967 (tweet, entity) pairs, 2280 output rows
+2026-02-23 17:54:58,102 [74887] INFO 2019-12 — starting
+2026-02-23 17:54:58,125 [74892] INFO 2019-04 — done in 23.1s: 2978996 (tweet, entity) pairs, 2268 output rows
+2026-02-23 17:54:58,183 [74892] INFO 2020-01 — starting
+2026-02-23 17:54:58,208 [74886] INFO 2019-09 — top-100 entities found, 2683047 (tweet, entity) pairs
+2026-02-23 17:54:58,474 [74885] INFO 2019-03 — done in 23.7s: 2760190 (tweet, entity) pairs, 2275 output rows
+2026-02-23 17:54:58,481 [74885] INFO 2020-02 — starting
+2026-02-23 17:54:59,241 [74888] INFO 2019-10 — top-100 entities found, 3017416 (tweet, entity) pairs
+2026-02-23 17:55:00,455 [74889] INFO 2019-07 — done in 23.9s: 2843360 (tweet, entity) pairs, 2278 output rows
+2026-02-23 17:55:00,461 [74889] INFO 2020-03 — starting
+2026-02-23 17:55:03,292 [74885] INFO 2020-02 — top-100 entities found, 2206649 (tweet, entity) pairs
+2026-02-23 17:55:03,998 [74890] INFO 2019-11 — top-100 entities found, 2855364 (tweet, entity) pairs
+2026-02-23 17:55:04,690 [74887] INFO 2019-12 — top-100 entities found, 2869786 (tweet, entity) pairs
+2026-02-23 17:55:04,894 [74892] INFO 2020-01 — top-100 entities found, 3044963 (tweet, entity) pairs
+2026-02-23 17:55:06,100 [74891] INFO 2019-08 — done in 22.8s: 2875994 (tweet, entity) pairs, 2284 output rows
+2026-02-23 17:55:06,107 [74891] INFO 2020-04 — starting
+2026-02-23 17:55:08,149 [74889] INFO 2020-03 — top-100 entities found, 3446145 (tweet, entity) pairs
+2026-02-23 17:55:12,908 [74886] INFO 2019-09 — done in 20.8s: 2683047 (tweet, entity) pairs, 2269 output rows
+2026-02-23 17:55:12,920 [74886] INFO 2020-05 — starting
+2026-02-23 17:55:14,105 [74891] INFO 2020-04 — top-100 entities found, 3894360 (tweet, entity) pairs
+2026-02-23 17:55:14,472 [74885] INFO 2020-02 — done in 16.0s: 2206649 (tweet, entity) pairs, 2262 output rows
+2026-02-23 17:55:14,477 [74885] INFO 2020-06 — starting
+2026-02-23 17:55:16,704 [74888] INFO 2019-10 — done in 24.2s: 3017416 (tweet, entity) pairs, 2297 output rows
+2026-02-23 17:55:16,711 [74888] INFO 2020-07 — starting
+2026-02-23 17:55:20,366 [74890] INFO 2019-11 — done in 23.1s: 2855364 (tweet, entity) pairs, 2272 output rows
+2026-02-23 17:55:20,376 [74890] INFO 2020-08 — starting
+2026-02-23 17:55:21,766 [74887] INFO 2019-12 — done in 23.7s: 2869786 (tweet, entity) pairs, 2275 output rows
+2026-02-23 17:55:21,772 [74887] INFO 2020-09 — starting
+2026-02-23 17:55:21,839 [74886] INFO 2020-05 — top-100 entities found, 4046062 (tweet, entity) pairs
+2026-02-23 17:55:23,544 [74885] INFO 2020-06 — top-100 entities found, 4330324 (tweet, entity) pairs
+2026-02-23 17:55:23,859 [74892] INFO 2020-01 — done in 25.7s: 3044963 (tweet, entity) pairs, 2301 output rows
+2026-02-23 17:55:23,874 [74892] INFO 2020-10 — starting
+2026-02-23 17:55:26,709 [74888] INFO 2020-07 — top-100 entities found, 4142039 (tweet, entity) pairs
+2026-02-23 17:55:30,745 [74889] INFO 2020-03 — done in 30.3s: 3446145 (tweet, entity) pairs, 2263 output rows
+2026-02-23 17:55:30,752 [74889] INFO 2020-11 — starting
+2026-02-23 17:55:32,020 [74887] INFO 2020-09 — top-100 entities found, 3944287 (tweet, entity) pairs
+2026-02-23 17:55:32,170 [74890] INFO 2020-08 — top-100 entities found, 4382130 (tweet, entity) pairs
+2026-02-23 17:55:35,161 [74892] INFO 2020-10 — top-100 entities found, 4399363 (tweet, entity) pairs
+2026-02-23 17:55:40,523 [74889] INFO 2020-11 — top-100 entities found, 4296699 (tweet, entity) pairs
+2026-02-23 17:55:47,968 [74891] INFO 2020-04 — done in 41.9s: 3894360 (tweet, entity) pairs, 2273 output rows
+2026-02-23 17:55:47,976 [74891] INFO 2020-12 — starting
+2026-02-23 17:55:55,941 [74891] INFO 2020-12 — top-100 entities found, 3642300 (tweet, entity) pairs
+2026-02-23 17:55:57,439 [74886] INFO 2020-05 — done in 44.5s: 4046062 (tweet, entity) pairs, 2313 output rows
+2026-02-23 17:55:57,458 [74886] INFO 2021-01 — starting
+2026-02-23 17:56:00,827 [74885] INFO 2020-06 — done in 46.3s: 4330324 (tweet, entity) pairs, 2316 output rows
+2026-02-23 17:56:00,836 [74885] INFO 2021-02 — starting
+2026-02-23 17:56:04,237 [74888] INFO 2020-07 — done in 47.5s: 4142039 (tweet, entity) pairs, 2301 output rows
+2026-02-23 17:56:04,256 [74888] INFO 2021-03 — starting
+2026-02-23 17:56:05,955 [74886] INFO 2021-01 — top-100 entities found, 3755102 (tweet, entity) pairs
+2026-02-23 17:56:06,298 [74887] INFO 2020-09 — done in 44.5s: 3944287 (tweet, entity) pairs, 2285 output rows
+2026-02-23 17:56:06,304 [74887] INFO 2021-04 — starting
+2026-02-23 17:56:09,080 [74885] INFO 2021-02 — top-100 entities found, 3609465 (tweet, entity) pairs
+2026-02-23 17:56:09,178 [74890] INFO 2020-08 — done in 48.8s: 4382130 (tweet, entity) pairs, 2305 output rows
+2026-02-23 17:56:09,186 [74890] INFO 2021-05 — starting
+2026-02-23 17:56:09,190 [74890] INFO 2021-05 — top-100 entities found, 0 (tweet, entity) pairs
+2026-02-23 17:56:09,191 [74890] INFO 2021-05 — done in 0.0s: 0 (tweet, entity) pairs, 0 output rows
+2026-02-23 17:56:09,194 [74890] INFO 2021-06 — starting
+2026-02-23 17:56:10,625 [74892] INFO 2020-10 — done in 46.8s: 4399363 (tweet, entity) pairs, 2293 output rows
+2026-02-23 17:56:10,633 [74892] INFO 2021-07 — starting
+2026-02-23 17:56:13,101 [74888] INFO 2021-03 — top-100 entities found, 3785534 (tweet, entity) pairs
+2026-02-23 17:56:14,794 [74887] INFO 2021-04 — top-100 entities found, 3630933 (tweet, entity) pairs
+2026-02-23 17:56:14,985 [74889] INFO 2020-11 — done in 44.2s: 4296699 (tweet, entity) pairs, 2261 output rows
+2026-02-23 17:56:15,001 [74889] INFO 2021-08 — starting
+2026-02-23 17:56:17,888 [74890] INFO 2021-06 — top-100 entities found, 3623381 (tweet, entity) pairs
+2026-02-23 17:56:19,335 [74892] INFO 2021-07 — top-100 entities found, 3605809 (tweet, entity) pairs
+2026-02-23 17:56:21,488 [74891] INFO 2020-12 — done in 33.5s: 3642300 (tweet, entity) pairs, 2258 output rows
+2026-02-23 17:56:21,494 [74891] INFO 2021-09 — starting
+2026-02-23 17:56:23,634 [74889] INFO 2021-08 — top-100 entities found, 3972051 (tweet, entity) pairs
+2026-02-23 17:56:29,159 [74891] INFO 2021-09 — top-100 entities found, 3322411 (tweet, entity) pairs
+2026-02-23 17:56:32,068 [74885] INFO 2021-02 — done in 31.2s: 3609465 (tweet, entity) pairs, 2296 output rows
+2026-02-23 17:56:32,076 [74885] INFO 2021-10 — starting
+2026-02-23 17:56:37,749 [74886] INFO 2021-01 — done in 40.3s: 3755102 (tweet, entity) pairs, 2313 output rows
+2026-02-23 17:56:37,757 [74886] INFO 2021-11 — starting
+2026-02-23 17:56:38,580 [74887] INFO 2021-04 — done in 32.3s: 3630933 (tweet, entity) pairs, 2267 output rows
+2026-02-23 17:56:38,588 [74887] INFO 2021-12 — starting
+2026-02-23 17:56:40,424 [74885] INFO 2021-10 — top-100 entities found, 3601514 (tweet, entity) pairs
+2026-02-23 17:56:40,577 [74890] INFO 2021-06 — done in 31.4s: 3623381 (tweet, entity) pairs, 2270 output rows
+2026-02-23 17:56:40,585 [74890] INFO 2022-01 — starting
+2026-02-23 17:56:42,152 [74892] INFO 2021-07 — done in 31.5s: 3605809 (tweet, entity) pairs, 2291 output rows
+2026-02-23 17:56:42,159 [74892] INFO 2022-02 — starting
+2026-02-23 17:56:43,149 [74888] INFO 2021-03 — done in 38.9s: 3785534 (tweet, entity) pairs, 2295 output rows
+2026-02-23 17:56:43,155 [74888] INFO 2022-03 — starting
+2026-02-23 17:56:46,258 [74886] INFO 2021-11 — top-100 entities found, 3836844 (tweet, entity) pairs
+2026-02-23 17:56:46,367 [74887] INFO 2021-12 — top-100 entities found, 3602805 (tweet, entity) pairs
+2026-02-23 17:56:47,349 [74889] INFO 2021-08 — done in 32.3s: 3972051 (tweet, entity) pairs, 2263 output rows
+2026-02-23 17:56:47,358 [74889] INFO 2022-04 — starting
+2026-02-23 17:56:49,542 [74891] INFO 2021-09 — done in 28.0s: 3322411 (tweet, entity) pairs, 2270 output rows
+2026-02-23 17:56:49,559 [74891] INFO 2022-05 — starting
+2026-02-23 17:56:49,622 [74890] INFO 2022-01 — top-100 entities found, 4538635 (tweet, entity) pairs
+2026-02-23 17:56:50,618 [74892] INFO 2022-02 — top-100 entities found, 4140592 (tweet, entity) pairs
+2026-02-23 17:56:52,627 [74888] INFO 2022-03 — top-100 entities found, 4538633 (tweet, entity) pairs
+2026-02-23 17:56:56,601 [74889] INFO 2022-04 — top-100 entities found, 4342579 (tweet, entity) pairs
+2026-02-23 17:56:58,353 [74891] INFO 2022-05 — top-100 entities found, 3948359 (tweet, entity) pairs
+2026-02-23 17:57:03,117 [74885] INFO 2021-10 — done in 31.0s: 3601514 (tweet, entity) pairs, 2255 output rows
+2026-02-23 17:57:03,123 [74885] INFO 2022-06 — starting
+2026-02-23 17:57:06,685 [74887] INFO 2021-12 — done in 28.1s: 3602805 (tweet, entity) pairs, 2234 output rows
+2026-02-23 17:57:06,691 [74887] INFO 2022-07 — starting
+2026-02-23 17:57:08,163 [74886] INFO 2021-11 — done in 30.4s: 3836844 (tweet, entity) pairs, 2246 output rows
+2026-02-23 17:57:08,169 [74886] INFO 2022-08 — starting
+2026-02-23 17:57:11,526 [74885] INFO 2022-06 — top-100 entities found, 3656467 (tweet, entity) pairs
+2026-02-23 17:57:13,891 [74892] INFO 2022-02 — done in 31.7s: 4140592 (tweet, entity) pairs, 2267 output rows
+2026-02-23 17:57:13,908 [74892] INFO 2022-09 — starting
+2026-02-23 17:57:15,839 [74887] INFO 2022-07 — top-100 entities found, 3440656 (tweet, entity) pairs
+2026-02-23 17:57:17,378 [74886] INFO 2022-08 — top-100 entities found, 3620594 (tweet, entity) pairs
+2026-02-23 17:57:21,030 [74890] INFO 2022-01 — done in 40.4s: 4538635 (tweet, entity) pairs, 2277 output rows
+2026-02-23 17:57:21,041 [74890] INFO 2022-10 — starting
+2026-02-23 17:57:22,632 [74891] INFO 2022-05 — done in 33.1s: 3948359 (tweet, entity) pairs, 2244 output rows
+2026-02-23 17:57:22,639 [74891] INFO 2022-11 — starting
+2026-02-23 17:57:23,367 [74892] INFO 2022-09 — top-100 entities found, 3617160 (tweet, entity) pairs
+2026-02-23 17:57:23,849 [74888] INFO 2022-03 — done in 40.7s: 4538633 (tweet, entity) pairs, 2276 output rows
+2026-02-23 17:57:23,858 [74888] INFO 2022-12 — starting
+2026-02-23 17:57:25,751 [74889] INFO 2022-04 — done in 38.4s: 4342579 (tweet, entity) pairs, 2243 output rows
+2026-02-23 17:57:25,763 [74889] INFO 2023-01 — starting
+2026-02-23 17:57:30,582 [74890] INFO 2022-10 — top-100 entities found, 3998829 (tweet, entity) pairs
+2026-02-23 17:57:31,544 [74891] INFO 2022-11 — top-100 entities found, 4052995 (tweet, entity) pairs
+2026-02-23 17:57:32,101 [74888] INFO 2022-12 — top-100 entities found, 3631754 (tweet, entity) pairs
+2026-02-23 17:57:34,168 [74889] INFO 2023-01 — top-100 entities found, 3443208 (tweet, entity) pairs
+2026-02-23 17:57:34,507 [74885] INFO 2022-06 — done in 31.4s: 3656467 (tweet, entity) pairs, 2240 output rows
+2026-02-23 17:57:34,513 [74885] INFO 2023-02 — starting
+2026-02-23 17:57:37,388 [74887] INFO 2022-07 — done in 30.7s: 3440656 (tweet, entity) pairs, 2267 output rows
+2026-02-23 17:57:37,395 [74887] INFO 2023-03 — starting
+2026-02-23 17:57:39,750 [74886] INFO 2022-08 — done in 31.6s: 3620594 (tweet, entity) pairs, 2250 output rows
+2026-02-23 17:57:39,757 [74886] INFO 2023-04 — starting
+2026-02-23 17:57:41,519 [74885] INFO 2023-02 — top-100 entities found, 3171009 (tweet, entity) pairs
+2026-02-23 17:57:45,503 [74892] INFO 2022-09 — done in 31.6s: 3617160 (tweet, entity) pairs, 2242 output rows
+2026-02-23 17:57:45,510 [74892] INFO 2023-05 — starting
+2026-02-23 17:57:45,694 [74887] INFO 2023-03 — top-100 entities found, 3630585 (tweet, entity) pairs
+2026-02-23 17:57:47,825 [74886] INFO 2023-04 — top-100 entities found, 3503831 (tweet, entity) pairs
+2026-02-23 17:57:54,037 [74892] INFO 2023-05 — top-100 entities found, 3916691 (tweet, entity) pairs
+2026-02-23 17:57:55,020 [74889] INFO 2023-01 — done in 29.3s: 3443208 (tweet, entity) pairs, 2258 output rows
+2026-02-23 17:57:55,026 [74889] INFO 2023-06 — starting
+2026-02-23 17:57:55,169 [74888] INFO 2022-12 — done in 31.3s: 3631754 (tweet, entity) pairs, 2248 output rows
+2026-02-23 17:57:55,305 [74890] INFO 2022-10 — done in 34.3s: 3998829 (tweet, entity) pairs, 2238 output rows
+2026-02-23 17:57:58,445 [74889] INFO 2023-06 — top-100 entities found, 1775983 (tweet, entity) pairs
+2026-02-23 17:58:00,027 [74885] INFO 2023-02 — done in 25.5s: 3171009 (tweet, entity) pairs, 2267 output rows
+2026-02-23 17:58:00,523 [74891] INFO 2022-11 — done in 37.9s: 4052995 (tweet, entity) pairs, 2204 output rows
+2026-02-23 17:58:03,805 [74889] INFO 2023-06 — done in 8.8s: 1775983 (tweet, entity) pairs, 2148 output rows
+2026-02-23 17:58:07,170 [74886] INFO 2023-04 — done in 27.4s: 3503831 (tweet, entity) pairs, 2250 output rows
+2026-02-23 17:58:07,615 [74887] INFO 2023-03 — done in 30.2s: 3630585 (tweet, entity) pairs, 2265 output rows
+2026-02-23 17:58:12,250 [74892] INFO 2023-05 — done in 26.7s: 3916691 (tweet, entity) pairs, 2250 output rows
+2026-02-23 17:58:13,457 [74881] INFO Redacted 38 dirty entities: 'nudes' → [REDACTED_a9603e], 'fart' → [REDACTED_3f2f42], 'lust' → [REDACTED_c19d68], 'blowjob' → [REDACTED_cf9a87], 'nigga' → [REDACTED_9271d6], 'stupid' → [REDACTED_fc0586], 'fuck' → [REDACTED_997544], 'pussy' → [REDACTED_acc6f2], 'american sniper' → [REDACTED_1e0e9e], 'fuck it' → [REDACTED_e4562f], 'stfu' → [REDACTED_b9d22d], 'adult porn' → [REDACTED_da3c3b], 'rape' → [REDACTED_c29b0f], 'boobs' → [REDACTED_d091fc], 'cumshot' → [REDACTED_1dea84], 'vodka' → [REDACTED_234eae], 'sexual assault' → [REDACTED_4388b6], 'my nigga' → [REDACTED_2a5ba7], 'anal' → [REDACTED_347341], 'fucked up' → [REDACTED_ff1ccc], 'shemale' → [REDACTED_5c157c], 'panties' → [REDACTED_51d5eb], 'moron' → [REDACTED_2da1ab], 'bullshit' → [REDACTED_d2aefe], 'omg' → [REDACTED_28b901], 'slut' → [REDACTED_fe325c], 'lmao' → [REDACTED_0f18fd], 'milf' → [REDACTED_0fa9d9], 'porno' → [REDACTED_52fb9d], 'viagra' → [REDACTED_8faa7f], 'facial expression' → [REDACTED_4005cd], 'lmfao' → [REDACTED_d8a157], 'vagina' → [REDACTED_833218], 'cunt' → [REDACTED_b52b07], 'shit' → [REDACTED_1223b8], 'porn' → [REDACTED_89e55d], 'asshole' → [REDACTED_0b9a54], 'what the fuck' → [REDACTED_736b83]
+2026-02-23 17:58:13,503 [74881] INFO Done. 261163 rows → tweetskb_agg/tweetskb_agg.parquet  |  range 2013-01–2023-06  |  461,499,470 posts  |  30,129,772,603 likes  |  12,862,766,400 shares

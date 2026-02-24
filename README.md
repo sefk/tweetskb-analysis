@@ -80,3 +80,83 @@ month_2018-03.n3.gz — 6 tweets, 13,649,117 entities, 9,361,559 mentions (312.7
 month_2018-04.n3.gz — 18,665,803 tweets, 16,955,536 entities, 14,701,016 mentions (332.2s)
 month_2018-05.n3.gz — 19,442,182 tweets, 17,824,912 entities, 15,705,321 mentions (349.9s)
 ```
+
+## Step 3: Aggregation
+
+Aggregate the per-month Parquet files into a single analysis-ready dataset.
+
+```bash
+python aggregate_tweetskb.py [INPUT ...] [-o DIR]
+```
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `INPUT` | `tweetskb_ready` | Input directory **or** one or more `_tweets.parquet` files |
+| `-o DIR` | `tweetskb_agg` | Output directory; `tweetskb_agg.parquet` is written inside it |
+
+```bash
+# full dataset — reads tweetskb_ready/, writes tweetskb_agg/tweetskb_agg.parquet
+python aggregate_tweetskb.py
+
+# custom input directory
+python aggregate_tweetskb.py /Volumes/ext1/tweetskb_ready -o /Volumes/ext1/tweetskb_agg
+
+# single month (useful for testing)
+python aggregate_tweetskb.py tweetskb_ready/month_2020-03_tweets.parquet -o /tmp/test
+
+# explicit list of months
+python aggregate_tweetskb.py tweetskb_ready/month_2020-{01,02,03}_tweets.parquet -o results/
+```
+
+The script reads the `_tweets.parquet` and `_mentions.parquet` files from the
+input and writes a single `tweetskb_agg.parquet` to the output directory. It
+processes all months in parallel across performance cores and streams each
+month in batches to keep memory usage bounded.
+
+### Output schema
+
+The compound primary key is `(year_month, positive_sentiment,
+negative_sentiment, has_mentions)`, giving at most 50 rows per month
+(5 × 5 × 2 combinations that actually appear in the data).
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `year_month` | str | `"YYYY-MM"` derived from the source filename |
+| `positive_sentiment` | float32 | Quantized intensity: 0.0 \| 0.25 \| 0.5 \| 0.75 \| 1.0 |
+| `negative_sentiment` | float32 | Quantized intensity: 0.0 \| 0.25 \| 0.5 \| 0.75 \| 1.0 |
+| `has_mentions` | bool | Tweet ID appears in the month's mentions table |
+| `total_likes` | int64 | Sum of like counts for the group |
+| `total_shares` | int64 | Sum of share counts for the group |
+| `post_count` | int64 | Number of tweets in the group |
+
+### Design decisions
+
+**Sentiment granularity.** The `positive_emotion` and `negative_emotion`
+values in TweetsKB are already quantized to exactly five discrete levels
+(0.0, 0.25, 0.5, 0.75, 1.0) — confirmed by inspecting value distributions
+across multiple months spanning the full dataset. These levels are used
+directly as dimension values rather than collapsing to a boolean, preserving
+meaningful intensity information. A rounding step (`×4 → round → ÷4`) snaps
+any floating-point noise to the canonical values before grouping.
+
+**Mentions as a boolean dimension.** Whether a tweet has any mentions is
+captured as a `bool` rather than a count, making it practical as a grouping
+dimension. The full mention detail remains available in the per-month
+`_mentions.parquet` files.
+
+**Performance cores only.** Worker count is set via `sysctl -n
+hw.perflevel0.logicalcpu` on macOS (P-cores only on Apple Silicon), falling
+back to `os.cpu_count()` elsewhere. Each month is dispatched to a
+`ProcessPoolExecutor` worker; results are tiny aggregated frames so
+inter-process communication overhead is negligible.
+
+**Streaming batches for memory efficiency.** Each worker reads the tweets
+file in 1 M-row batches via `pq.ParquetFile.iter_batches()`, keeping
+per-worker RAM well under 200 MB even for the largest months (~20 M tweets).
+The mentions set is loaded in one shot (mentions files are much smaller) and
+held in a Python `set` for O(1) per-tweet lookup.
+
+**Progress visibility.** `tqdm` shows two levels of bars: an overall
+month-level bar at position 0, and per-worker batch-level bars at positions
+1–N using a slot queue — the same pattern used in `convert_n3_to_parquet.py`.
+
