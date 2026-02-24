@@ -124,7 +124,11 @@ deterministic token of the form `[REDACTED_<6-char MD5>]` derived from the
 original text. Using a hash rather than a generic placeholder keeps each
 dirty entity distinct (preserving the top-100 entity cardinality) and makes
 the mapping reproducible across runs. Redacted entities and their tokens are
-printed to stdout and logged at INFO level.
+printed to stdout and logged at INFO level. The token-to-original mapping is
+also written to `redacted.parquet` in the output directory (schema: `token`,
+`original`). Both scripts write to the same file and merge with any existing
+rows, so running them into the same output directory accumulates all
+redactions into one table.
 
 ### agg_date.py
 
@@ -205,3 +209,159 @@ Compound primary key: `(entity, year_month)`.
 | `total_shares` | int64 | Sum of shares for tweets mentioning this entity |
 | `post_count` | int64 | Number of (tweet × entity) pairs in the group |
 
+## Aggregation Testing
+
+Data quality tests for both aggregation scripts live alongside them and share
+a `conftest.py` that registers the `--month` CLI option.
+
+```bash
+# Run all tests against the default month (2013-01)
+pytest agg_date_test.py agg_entity_test.py -v
+
+# Test a specific month
+pytest agg_date_test.py agg_entity_test.py --month 2020-03 -v
+```
+
+Each test file calls `process_month()` directly from the script under test,
+passing a real `multiprocessing.Manager` queue (and stop event, for
+`agg_entity`).  All raw-data comparisons are computed independently from the
+source Parquet files so the tests do not depend on any prior pipeline run.
+
+### agg_date_test.py
+
+| Category | Tests |
+|---|---|
+| **Schema** | Output is not empty; no duplicate `(positive_sentiment, negative_sentiment, entity)` keys; all sentiment values are in {0.0, 0.25, 0.5, 0.75, 1.0}; at most `TOP_N_ENTITIES + 2` distinct entities; `post_count > 0`; `total_likes` and `total_shares` non-negative; `year_month` label is correct |
+| **Entity membership** | Every named entity (other than `"Other"` and `"None"`) is in the top-100 for the month; `"Other"` is present when non-top entities exist; `"None"` is present when entity-less tweets exist |
+| **"None" group** | `post_count`, `total_likes`, and `total_shares` all exactly match raw sums for tweets whose `tweet_id` does not appear in the entities file |
+| **"Other" group** | Same three invariants verified for tweets that have at least one non-top-100 entity |
+| **Total post_count** | Equals the number of unique `(tweet_id, entity_label)` pairs after top-100 labelling plus the count of entity-less tweets — exactly reconstructing the pipeline's join table |
+| **Global lower bounds** | Output `total_likes` and `total_shares` are ≥ input totals (multi-entity tweets are counted once per entity, so output sums can only grow) |
+
+### agg_entity_test.py
+
+| Category | Tests |
+|---|---|
+| **Schema** | Output is not empty; no duplicate `entity` rows; `post_count > 0`; `total_likes` and `total_shares` non-negative; `year_month` label is correct |
+| **Sentiment range** | `positive_sentiment` and `negative_sentiment` are each in [0.0, 1.0] (values are means, not quantized buckets) |
+| **Entity membership** | All entities are among the top-N for the month; distinct entity count ≤ `TOP_N_ENTITIES` |
+| **Total post_count** | Equals the number of unique `(tweet_id, top-entity)` pairs in the deduplicated join table |
+| **Per-entity correctness** | For the most-mentioned entity: `post_count`, `total_likes`, `total_shares`, and both sentiment means are verified exactly (sentiment uses 1e-4 tolerance for float accumulation) against values recomputed from raw data |
+| **Global lower bounds** | Output `total_likes` and `total_shares` are ≥ the sums for tweets that mention any top-N entity |
+
+## Aggregation Debugging
+
+### Additional flags
+
+`agg_entity.py` exposes extra flags useful when tracking down hangs or
+restarting interrupted runs:
+
+| Flag | Description |
+|------|-------------|
+| `-w N` / `--workers N` | Override the worker count. Use `-w 1` to serialize all months onto one worker, which makes the log file linear and much easier to read. |
+| `--checkpoint-dir DIR` | Where per-month checkpoint files are written (default: `{output}/checkpoints/`). |
+| `--no-resume` | Ignore existing checkpoints and reprocess every month from scratch. |
+
+### Diagnosing a hang
+
+The most likely hang point is the per-batch merge of the tweets table against
+the full entities table.  Because `agg_entity.py` includes all entities (unlike
+`agg_date.py` which caps at 100), the entities table can be very large, and the
+inner join can expand a 1 M-row tweet batch into a much larger result.
+
+The log file (`agg_entity.log`) records timing and RSS at each stage.  Look for
+these lines to locate the stall:
+
+```text
+# Worker started — baseline RSS
+2026-02-24 10:01:00 [1234] INFO 2020-03 — starting, RSS 42 MB
+
+# Entities loaded — shows table size and how long the load took
+2026-02-24 10:01:02 [1234] INFO 2020-03 — entities loaded in 1.8s: 84321045 pairs, 2103456 unique entities, RSS 3210 MB
+
+# Per-batch merge — if this line never appears, the hang is in the merge itself
+2026-02-24 10:01:45 [1234] INFO 2020-03 — batch 1/20: merge 43.2s → 9823411 rows, RSS 4102 MB
+
+# Batch complete — includes cumulative entity count in accumulator
+2026-02-24 10:01:52 [1234] INFO 2020-03 — batch 1/20 done in 50.1s, 187432 entities so far
+```
+
+If RSS climbs continuously across batches, the entities table or the merged
+result is larger than expected.  If a "batch N/M: merge" line never follows the
+"entities loaded" line, the merge is hanging before returning.
+
+Common causes and remedies:
+
+- **Entities table too large.** `TOP_N_ENTITIES` (currently 10 000) controls
+  how many entities per month are retained.  On a 64 GB / 8 P-core machine
+  this keeps each worker's filtered entity table to roughly 2 GB.  Lower the
+  constant if you see RSS grow beyond comfortable headroom; raise it if you
+  want broader entity coverage and have confirmed memory to spare.
+- **Join explosion.** If many tweets match many entities, the inner join
+  produces far more rows than the input batch.  The `merge` log line shows the
+  post-join row count; values much larger than `BATCH_SIZE` indicate this.
+- **Single-threaded bottleneck.** Run with `-w 1` to confirm one month works
+  end-to-end before attempting the full dataset in parallel.
+
+### Clean interrupt and resume
+
+Press **Ctrl+C** once to initiate a clean shutdown.  Workers finish their
+current batch, then return empty results for their month (so no partial data is
+written).  Every month that completed before the interrupt has already been
+written to `{output}/checkpoints/YYYY-MM.parquet`.
+
+Re-run the same command to pick up where you left off — completed months are
+loaded from checkpoints and skipped automatically:
+
+```bash
+# Initial run (interrupted after some months)
+python agg_entity.py
+
+# Resume — completed months are skipped, remaining months are processed
+python agg_entity.py
+
+# Start completely fresh, ignoring checkpoints
+python agg_entity.py --no-resume
+```
+
+The final `entity.parquet` is (re-)assembled from all checkpoints each time the
+script completes, so the output file is always consistent with however many
+months have been processed.
+
+## Step 4: Run the EDA Dashboard
+
+`dashboard.py` is an interactive Dash app for exploratory data analysis of
+`tweetskb_tables/date.parquet`. It runs locally in your browser.
+
+```bash
+python dashboard.py
+```
+
+Then open **http://localhost:8050**.
+
+### Controls
+
+| Control | Description |
+|---------|-------------|
+| **Metric** | Switch the primary measure: Post Count, Total Likes, Total Shares, Avg Positive Sentiment, or Avg Negative Sentiment |
+| **Chart type** | Line, Stacked Bar, or Area for the time-series panel |
+| **Y-axis scale** | Linear or Log — log is useful for count metrics, which are heavily right-skewed |
+| **Date range** | Drag the slider to zoom into any window within Jan 2013 – Jun 2023 |
+| **Entities** | Search-able multi-select over all 1,234 entities; quick-select buttons for the Top 5 / 10 / 20 by total post volume |
+
+### Charts
+
+**Time series (top panel).** Selected entities plotted against the chosen
+metric across the filtered date range, with a unified hover tooltip for easy
+cross-entity comparison.
+
+**Ranked bar (bottom-left).** Total metric value per entity aggregated over the
+selected date window, sorted ascending so the largest bar is always at the top.
+
+**Sentiment scatter (bottom-right).** Each entity plotted in
+positive-sentiment × negative-sentiment space. Bubble size encodes post count.
+The dashed diagonal marks equal positive/negative sentiment; entities above it
+skew negative, below it skew positive.
+
+**Summary table.** Per-entity totals (posts, likes, shares) and mean sentiment
+scores for every entity visible in the current selection and date window.

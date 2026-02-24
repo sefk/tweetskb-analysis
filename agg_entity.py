@@ -1,24 +1,25 @@
 #!/usr/bin/env python3
 """
-agg_date.py
+agg_entity.py
 
 Reads per-month Parquet files from tweetskb_ready/ and produces a single
-aggregated dataset for analysis with pandas and plotly.
+entity-centric aggregation table.
 
-Output schema (date.parquet):
+Output schema (entity.parquet):
+  entity                  str      entity name
   year_month              str      "YYYY-MM"  — primary key component
-  positive_sentiment      float32  emotion intensity: 0.0 | 0.25 | 0.5 | 0.75 | 1.0
-  negative_sentiment      float32  emotion intensity: 0.0 | 0.25 | 0.5 | 0.75 | 1.0
-  entity                  str      detected entity text (top 100 per month by tweet count)
-  total_likes             int64    sum of likes for the group
-  total_shares            int64    sum of shares for the group
+  positive_sentiment      float32  mean positive emotion across tweets mentioning this entity
+  negative_sentiment      float32  mean negative emotion across tweets mentioning this entity
+  total_likes             int64    sum of likes for tweets mentioning this entity
+  total_shares            int64    sum of shares for tweets mentioning this entity
   post_count              int64    count of (tweet × entity) pairs in the group
 
-The sentiment values are the raw quantized scores from TweetsKB (0.25 = low,
-0.5 = medium, 0.75 = high, 1.0 = very high, 0.0 = none detected).  Using the
-five discrete levels as a dimension gives at most 5 × 5 × 100 = 2500 rows per
-month.  Only tweets that mention at least one top-100 entity are included;
-tweets can appear multiple times if they mention more than one top-100 entity.
+The compound primary key is (entity, year_month).  Only the top TOP_N_ENTITIES
+entities per month by unique tweet count are included.  A tweet that mentions
+multiple top-N entities is counted once per entity.
+
+Sentiment values are the mean of the quantized TweetsKB emotion scores
+(0.0 | 0.25 | 0.5 | 0.75 | 1.0) across all tweets in each group.
 
 Performance & memory:
   - Spawns one worker per performance core (hw.perflevel0.logicalcpu on macOS).
@@ -48,13 +49,12 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 import pandas as pd
-import pyarrow.compute as pc
 import pyarrow.parquet as pq
 from better_profanity import profanity
 from tqdm import tqdm
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-LOG_FILE = SCRIPT_DIR / "agg_date.log"
+LOG_FILE = SCRIPT_DIR / "agg_entity.log"
 
 # Rows read from the tweets parquet per batch.  At ~50–70 bytes/row in RAM
 # after pandas conversion this keeps each batch under ~70 MB.
@@ -67,7 +67,7 @@ BATCH_SIZE = 1_000_000
 
 def _setup_logging() -> logging.Logger:
     """Configure file logging. Safe to call from both main and worker processes."""
-    logger = logging.getLogger("aggregate")
+    logger = logging.getLogger("agg_entity")
     if not logger.handlers:
         handler = logging.FileHandler(LOG_FILE)
         handler.setFormatter(logging.Formatter(
@@ -131,7 +131,7 @@ def _write_redactions(redaction_map: dict, output_dir: Path, log) -> None:
 
 def discover_jobs(tweets_files: list) -> list:
     """Return sorted (year_month, tweets_path, entities_path) tuples."""
-    log = logging.getLogger("aggregate")
+    log = logging.getLogger("agg_entity")
     jobs = []
     for tf in sorted(tweets_files):
         ym = tf.stem.removeprefix("month_").removesuffix("_tweets")
@@ -153,7 +153,7 @@ def _write_checkpoint(rows: list, checkpoint_dir: Path, year_month: str) -> None
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     path = _checkpoint_path(checkpoint_dir, year_month)
     pd.DataFrame(rows).to_parquet(path, index=False)
-    logging.getLogger("aggregate").info(
+    logging.getLogger("agg_entity").info(
         "%s — checkpoint written: %d rows → %s", year_month, len(rows), path
     )
 
@@ -162,11 +162,16 @@ def _write_checkpoint(rows: list, checkpoint_dir: Path, year_month: str) -> None
 # Per-worker function (runs in a subprocess)
 # ---------------------------------------------------------------------------
 
-TOP_N_ENTITIES = 100
+# Top-N entities per month by unique tweet count.  Capping the entity set
+# keeps the per-worker entities table (and the subsequent per-batch merge)
+# within a predictable memory budget.  At 10 000 on a 64 GB / 8 P-core
+# machine each worker's filtered entity table runs roughly 2 GB, giving
+# comfortable headroom with 8 workers in flight simultaneously.
+TOP_N_ENTITIES = 10_000
 
 
 def process_month(args: tuple) -> list:
-    """Aggregate one month into at most 2500 rows (5 × 5 sentiment × 100 entities).
+    """Aggregate one month into one row per entity.
 
     args: (year_month, tweets_path, entities_path, slot_queue, stop_event)
       slot_queue is a Manager().Queue() that hands out tqdm position slots so
@@ -175,10 +180,8 @@ def process_month(args: tuple) -> list:
       worker checks it before each batch and returns [] (no partial results) so
       the month can be safely retried on the next run.
 
-    Tweets that mention top-100 entities are counted once per such entity.
-    Tweets that mention only non-top entities are grouped under "Other" (a
-    tweet mentioning N non-top entities contributes once, not N times).
-    Tweets with no detected entity at all are grouped under "None".
+    Sentiment columns are the mean of the quantized TweetsKB emotion scores
+    across all tweets that mention each entity.
 
     Returns a list of dicts ready to be passed to pd.DataFrame().
     """
@@ -189,11 +192,12 @@ def process_month(args: tuple) -> list:
     t0 = time.time()
 
     try:
-        log.info("%s — starting", year_month)
+        log.info("%s — starting, RSS %.0f MB", year_month, _rss_mb())
 
         # --- Find top-N entities for this month by unique tweet count.
         # Load the full entities file, compute counts, then discard everything
         # except the filtered (tweet_id, entity) pairs to free peak memory.
+        t_load = time.time()
         ent_full = pq.read_table(
             str(entities_path), columns=["tweet_id", "detected_as"]
         ).to_pandas()
@@ -205,24 +209,29 @@ def process_month(args: tuple) -> list:
             .index
         )
 
-        # Map non-top entities to "Other"; keep one row per (tweet_id, entity)
-        # so a tweet mentioning multiple non-top entities counts once under "Other".
-        ent_full["entity"] = ent_full["detected_as"].where(
-            ent_full["detected_as"].isin(top_entities), other="Other"
+        # Keep one row per (tweet_id, entity); drop duplicates so a tweet
+        # that mentions the same entity twice is only counted once.
+        ent = (
+            ent_full[ent_full["detected_as"].isin(top_entities)]
+            [["tweet_id", "detected_as"]]
+            .drop_duplicates()
+            .rename(columns={"detected_as": "entity"})
         )
-        ent = ent_full[["tweet_id", "entity"]].drop_duplicates()
         del ent_full
 
-        log.info("%s — top-%d entities found, %d (tweet, entity) pairs",
-                 year_month, TOP_N_ENTITIES, len(ent))
+        log.info(
+            "%s — top-%d entities selected in %.1fs: %d pairs, RSS %.0f MB",
+            year_month, TOP_N_ENTITIES, time.time() - t_load, len(ent), _rss_mb(),
+        )
 
         # --- Stream tweets in fixed-size batches and accumulate aggregates.
-        # accum: (pos_val, neg_val, entity) -> [likes_sum, shares_sum, count]
+        # accum: entity -> [likes_sum, shares_sum, count, pos_sum, neg_sum]
         accum: dict = {}
 
         pf = pq.ParquetFile(str(tweets_path))
         n_rows = pf.metadata.num_rows
         n_batches = max(1, math.ceil(n_rows / BATCH_SIZE))
+        log.info("%s — tweets file: %d rows, %d batches", year_month, n_rows, n_batches)
 
         batch_bar = tqdm(
             total=n_batches,
@@ -236,6 +245,7 @@ def process_month(args: tuple) -> list:
             batch_size=BATCH_SIZE,
             columns=["tweet_id", "likes", "shares", "positive_emotion", "negative_emotion"],
         )):
+            # Check for shutdown before doing heavy work on this batch.
             if stop_event.is_set():
                 log.warning(
                     "%s — stop requested before batch %d/%d; discarding partial results",
@@ -244,38 +254,46 @@ def process_month(args: tuple) -> list:
                 batch_bar.close()
                 return []
 
+            t_batch = time.time()
             df = batch.to_pandas()
 
             # Sentiment levels: NaN → 0.0, then round to nearest 0.25 to
             # snap any floating-point noise to the canonical quantized values.
-            df["positive_sentiment"] = (
+            df["positive_emotion"] = (
                 df["positive_emotion"].fillna(0.0).mul(4).round().div(4)
             ).astype("float32")
-            df["negative_sentiment"] = (
+            df["negative_emotion"] = (
                 df["negative_emotion"].fillna(0.0).mul(4).round().div(4)
             ).astype("float32")
 
             df["likes"]  = df["likes"].fillna(0).astype("int32")
             df["shares"] = df["shares"].fillna(0).astype("int32")
 
-            # Left join: top-100 entities expand the tweet into one row each;
-            # non-top entities were collapsed to "Other" in ent above.
-            # Tweets absent from the entities file (no entity detected) survive
-            # the left join with a NaN entity, labelled "None".
-            df = df.merge(ent, on="tweet_id", how="left")
-            df["entity"] = df["entity"].fillna("None")
+            # Inner join: each tweet row is replicated once per matching entity.
+            # Tweets with no entry in the entities table are dropped.
+            t_merge = time.time()
+            df = df.merge(ent, on="tweet_id", how="inner")
+            log.info(
+                "%s — batch %d/%d: merge %.1fs → %d rows, RSS %.0f MB",
+                year_month, batch_num + 1, n_batches,
+                time.time() - t_merge, len(df), _rss_mb(),
+            )
 
-            for key, grp in df.groupby(
-                ["positive_sentiment", "negative_sentiment", "entity"],
-                observed=True,
-            ):
-                k = (float(key[0]), float(key[1]), str(key[2]))
-                if k not in accum:
-                    accum[k] = [0, 0, 0]
-                accum[k][0] += int(grp["likes"].sum())
-                accum[k][1] += int(grp["shares"].sum())
-                accum[k][2] += len(grp)
+            for key, grp in df.groupby("entity", observed=True):
+                e = str(key)
+                if e not in accum:
+                    accum[e] = [0, 0, 0, 0.0, 0.0]
+                accum[e][0] += int(grp["likes"].sum())
+                accum[e][1] += int(grp["shares"].sum())
+                accum[e][2] += len(grp)
+                accum[e][3] += float(grp["positive_emotion"].sum())
+                accum[e][4] += float(grp["negative_emotion"].sum())
 
+            log.info(
+                "%s — batch %d/%d done in %.1fs, %d entities so far",
+                year_month, batch_num + 1, n_batches,
+                time.time() - t_batch, len(accum),
+            )
             batch_bar.update(1)
 
         batch_bar.close()
@@ -283,12 +301,12 @@ def process_month(args: tuple) -> list:
         # --- Flatten accumulator into row dicts ---
         rows = []
         total_pairs = 0
-        for (pos_val, neg_val, entity), (likes, shares, count) in accum.items():
+        for entity, (likes, shares, count, pos_sum, neg_sum) in accum.items():
             rows.append({
-                "year_month":         year_month,
-                "positive_sentiment": pos_val,
-                "negative_sentiment": neg_val,
                 "entity":             entity,
+                "year_month":         year_month,
+                "positive_sentiment": float(pos_sum / count) if count else 0.0,
+                "negative_sentiment": float(neg_sum / count) if count else 0.0,
                 "total_likes":        likes,
                 "total_shares":       shares,
                 "post_count":         count,
@@ -296,8 +314,10 @@ def process_month(args: tuple) -> list:
             total_pairs += count
 
         elapsed = time.time() - t0
-        log.info("%s — done in %.1fs: %d (tweet, entity) pairs, %d output rows",
-                 year_month, elapsed, total_pairs, len(rows))
+        log.info(
+            "%s — done in %.1fs: %d (tweet, entity) pairs, %d output rows, RSS %.0f MB",
+            year_month, elapsed, total_pairs, len(rows), _rss_mb(),
+        )
         return rows
 
     except Exception:
@@ -314,7 +334,7 @@ def process_month(args: tuple) -> list:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Aggregate tweetskb_ready Parquet files into a single analysis dataset."
+        description="Aggregate tweetskb_ready Parquet files into a single entity-centric dataset."
     )
     parser.add_argument(
         "input",
@@ -328,7 +348,7 @@ def parse_args() -> argparse.Namespace:
         "-o", "--output",
         default="tweetskb_tables",
         metavar="DIR",
-        help="Output directory; date.parquet is written inside it "
+        help="Output directory; entity.parquet is written inside it "
              "(default: tweetskb_tables)",
     )
     parser.add_argument(
@@ -378,13 +398,13 @@ def main() -> None:
 
     output_dir = Path(args.output)
     output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / "date.parquet"
+    output_path = output_dir / "entity.parquet"
 
     checkpoint_dir = Path(args.checkpoint_dir) if args.checkpoint_dir else output_dir / "checkpoints"
 
     jobs = discover_jobs(tweets_files)
     if not jobs:
-        msg = "No processable month pairs found (missing mentions files?)"
+        msg = "No processable month pairs found (missing entities files?)"
         print(f"ERROR: {msg}", file=sys.stderr)
         log.error(msg)
         sys.exit(1)
@@ -490,9 +510,7 @@ def main() -> None:
 
     # --- Build final DataFrame and enforce clean dtypes ---
     df = pd.DataFrame(all_rows)
-    df = df.sort_values(
-        ["year_month", "entity", "positive_sentiment", "negative_sentiment"]
-    ).reset_index(drop=True)
+    df = df.sort_values(["entity", "year_month"]).reset_index(drop=True)
 
     df["positive_sentiment"] = df["positive_sentiment"].astype("float32")
     df["negative_sentiment"] = df["negative_sentiment"].astype("float32")
@@ -504,8 +522,8 @@ def main() -> None:
     # --- Redact dirty entities ---
     # Check each unique entity once, then replace flagged names with a
     # deterministic redaction token.  Using a short MD5 hash of the original
-    # text keeps each dirty entity distinct (preserving the 100-entity count)
-    # and makes the mapping reproducible across runs.
+    # text keeps each dirty entity distinct and makes the mapping reproducible
+    # across runs.
     redaction_map = {}
     unique_entities = df["entity"].unique()
     dirty = {e for e in unique_entities if profanity.contains_profanity(e)}
