@@ -86,8 +86,9 @@ def output_df(month, raw_data):
     manager = mp.Manager()
     slot_queue = manager.Queue()
     slot_queue.put(0)   # one slot is enough for a single worker
+    stop_event = manager.Event()
 
-    rows = process_month((month, tweets_path, entities_path, slot_queue))
+    rows = process_month((month, tweets_path, entities_path, slot_queue, stop_event))
     manager.shutdown()
 
     return pd.DataFrame(rows)
