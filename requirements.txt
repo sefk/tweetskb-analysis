@@ -1,4 +1,5 @@
 better-profanity
+dash
 notebook
 pandas
 plotly
