@@ -20,7 +20,9 @@
       "Bash(.venv/bin/pytest:*)",
       "Bash(.venv/bin/python:*)",
       "Bash(tee:*)",
-      "Bash(pytest:*)"
+      "Bash(pytest:*)",
+      "Bash(python:*)",
+      "Bash(cat:*)"
     ]
   }
 }
