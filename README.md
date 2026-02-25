@@ -246,14 +246,16 @@ Compound primary key: `(entity, year_month)`.
 ## Aggregation Testing
 
 Data quality tests for both aggregation scripts live alongside them and share
-a `conftest.py` that registers the `--month` CLI option.
+a `conftest.py` that registers the `--month` and `--months` CLI options.
 
 ```bash
-# Run all tests against the default month (2013-01)
-pytest agg_date_test.py agg_entity_test.py -v
+# Fast unit tests — run against a single month (default: 2013-01)
+pytest agg_date_test.py agg_entity_test.py agg_month_test.py -v
+pytest agg_date_test.py agg_entity_test.py agg_month_test.py --month 2020-03 -v
 
-# Test a specific month
-pytest agg_date_test.py agg_entity_test.py --month 2020-03 -v
+# Expensive E2E tests — run against multiple months, kept separate
+pytest e2e_agg_test.py -v
+pytest e2e_agg_test.py -v --months 2013-01 2013-06 2014-01
 ```
 
 Each test file calls `process_month()` directly from the script under test,
@@ -268,7 +270,7 @@ source Parquet files so the tests do not depend on any prior pipeline run.
 | **Schema** | Output is not empty; no duplicate `(positive_sentiment, negative_sentiment, entity)` keys; all sentiment values are in {0.0, 0.25, 0.5, 0.75, 1.0}; at most `TOP_N_ENTITIES + 2` distinct entities; `post_count > 0`; `total_likes` and `total_shares` non-negative; `year_month` label is correct |
 | **Entity membership** | Every named entity (other than `"Other"` and `"None"`) is in the top-100 for the month; `"Other"` is present when non-top entities exist; `"None"` is present when entity-less tweets exist |
 | **"None" group** | `post_count`, `total_likes`, and `total_shares` all exactly match raw sums for tweets whose `tweet_id` does not appear in the entities file |
-| **"Other" group** | Same three invariants verified for tweets that have at least one non-top-100 entity |
+| **"Other" group** | Same three invariants verified for tweets that mention only non-top-100 entities (tweets that also mention a top entity are excluded from this bucket) |
 | **Total post_count** | Equals the number of unique `(tweet_id, entity_label)` pairs after top-100 labelling plus the count of entity-less tweets — exactly reconstructing the pipeline's join table |
 | **Global lower bounds** | Output `total_likes` and `total_shares` are ≥ input totals (multi-entity tweets are counted once per entity, so output sums can only grow) |
 
@@ -289,6 +291,21 @@ source Parquet files so the tests do not depend on any prior pipeline run.
 |---|---|
 | **Schema** | Output is not empty; no duplicate `(positive_sentiment, negative_sentiment)` keys; all sentiment values are in {0.0, 0.25, 0.5, 0.75, 1.0}; at most 25 rows; `post_count > 0`; `total_likes` and `total_shares` non-negative; `year_month` label is correct; no `entity`, `redacted`, or `classified` columns |
 | **Count / sum invariants** | `sum(post_count)` equals the exact tweet count in the input file; `sum(total_likes)` and `sum(total_shares)` match raw sums exactly (no row expansion, so equality — not just ≥) |
+
+### e2e_agg_test.py
+
+Runs `process_month()` from **both** scripts for each test month and
+cross-validates their outputs against each other and against raw Parquet.
+Controlled by `--months` (default: `2013-01 2013-06 2014-01`).
+
+| Category | Tests |
+|---|---|
+| **Month isolation** | Each script's output rows carry only the correct `year_month` label |
+| **Cross-script post_count** | For top-100 entities, `sum(date post_count across sentiments)` equals `entity post_count` for every test month |
+| **Cross-script total_likes** | Same check for `total_likes` |
+| **Cross-script total_shares** | Same check for `total_shares` |
+| **"Other" double-count** | Identifies tweets that mention both a top-100 entity and a non-top entity; fails if such tweets appear under both the named entity and `"Other"` (per the docstring, `"Other"` should contain only tweets that mention *no* top entity) |
+| **Per-entity raw verification** | `post_count`, `total_likes`, `total_shares` for the top-5 entities per month verified against raw Parquet across all test months |
 
 ## Aggregation Debugging
 

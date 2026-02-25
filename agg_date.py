@@ -215,6 +215,14 @@ def process_month(args: tuple) -> list:
         ent = ent_full[["tweet_id", "entity"]].drop_duplicates()
         del ent_full
 
+        # Drop "Other" rows for tweets that already have a named top-entity row.
+        # Without this, a tweet mentioning [top_A, non_top_B] produces rows for
+        # both "top_A" and "Other", double-counting its likes and shares.
+        # Per the docstring, "Other" should contain only tweets that mention
+        # *no* top-100 entity.
+        top_tweet_ids = set(ent.loc[ent["entity"] != "Other", "tweet_id"])
+        ent = ent[~((ent["entity"] == "Other") & ent["tweet_id"].isin(top_tweet_ids))]
+
         log.info("%s — top-%d entities found, %d (tweet, entity) pairs",
                  year_month, TOP_N_ENTITIES, len(ent))
 

@@ -224,12 +224,18 @@ def test_named_entities_are_top(output_df, top_entities):
 
 
 def test_other_present_when_non_top_entities_exist(output_df, raw_data, top_entities):
-    """'Other' entity must appear when some entities fall outside the top-N."""
+    """'Other' entity must appear when some tweets mention only non-top entities."""
     _, entities_df = raw_data
-    has_non_top = (~entities_df["detected_as"].isin(top_entities)).any()
-    if has_non_top:
+    non_top_ids = set(
+        entities_df.loc[~entities_df["detected_as"].isin(top_entities), "tweet_id"].unique()
+    )
+    top_ids = set(
+        entities_df.loc[entities_df["detected_as"].isin(top_entities), "tweet_id"].unique()
+    )
+    has_pure_non_top = bool(non_top_ids - top_ids)
+    if has_pure_non_top:
         assert "Other" in set(output_df["entity"].unique()), (
-            "'Other' entity missing despite non-top entities existing"
+            "'Other' entity missing despite pure non-top-entity tweets existing"
         )
 
 
@@ -287,11 +293,19 @@ def test_none_group_shares_sum(output_df, no_entity_tweets):
 
 @pytest.fixture(scope="session")
 def other_tweet_ids(raw_data, top_entities):
-    """Set of tweet_ids that appear in the entities file with at least one non-top entity."""
+    """Set of tweet_ids that mention only non-top entities (no top-100 entity at all).
+
+    These are the tweets that land in the 'Other' bucket after the fix that
+    excludes mixed-topic tweets (which already appear under their named entity).
+    """
     _, entities_df = raw_data
-    return set(
+    non_top = set(
         entities_df.loc[~entities_df["detected_as"].isin(top_entities), "tweet_id"].unique()
     )
+    top = set(
+        entities_df.loc[entities_df["detected_as"].isin(top_entities), "tweet_id"].unique()
+    )
+    return non_top - top
 
 
 def test_other_group_post_count(output_df, other_tweet_ids):
@@ -331,18 +345,21 @@ def test_total_post_count(output_df, raw_data, top_entities):
     """Total post_count must equal the number of unique (tweet_id, entity_label) pairs.
 
     Each tweet contributes one row per top-N entity it mentions, one row under
-    'Other' if it mentions any non-top entity, and one row under 'None' if it
+    'Other' if it mentions only non-top entities, and one row under 'None' if it
     has no detected entity at all.  This mirrors exactly how the pipeline builds
     the 'ent' join table before merging with tweets.
     """
     tweets_df, entities_df = raw_data
 
-    # Reproduce the pipeline's entity labelling
+    # Reproduce the pipeline's entity labelling (including the mixed-tweet fix)
     ent_full = entities_df.copy()
     ent_full["entity"] = ent_full["detected_as"].where(
         ent_full["detected_as"].isin(top_entities), other="Other"
     )
-    n_entity_pairs = len(ent_full[["tweet_id", "entity"]].drop_duplicates())
+    ent = ent_full[["tweet_id", "entity"]].drop_duplicates()
+    top_tweet_ids = set(ent.loc[ent["entity"] != "Other", "tweet_id"])
+    ent = ent[~((ent["entity"] == "Other") & ent["tweet_id"].isin(top_tweet_ids))]
+    n_entity_pairs = len(ent)
 
     tweet_ids_with_entity = set(entities_df["tweet_id"].unique())
     n_no_entity = int((~tweets_df["tweet_id"].isin(tweet_ids_with_entity)).sum())
