@@ -371,8 +371,8 @@ months have been processed.
 
 ## Step 4: Run the EDA Dashboard
 
-`dashboard.py` is an interactive Dash app for exploratory data analysis of
-`tweetskb_tables/date.parquet`. It runs locally in your browser.
+`dashboard.py` is an interactive Dash app for exploratory data analysis. It runs
+locally in your browser.
 
 ```bash
 python dashboard.py
@@ -380,29 +380,43 @@ python dashboard.py
 
 Then open **http://localhost:8050**.
 
-### Controls
+### Shared controls (above tabs)
 
 | Control | Description |
 |---------|-------------|
 | **Metric** | Switch the primary measure: Post Count, Total Likes, Total Shares, Avg Positive Sentiment, or Avg Negative Sentiment |
 | **Chart type** | Line, Stacked Bar, or Area for the time-series panel |
 | **Y-axis scale** | Linear or Log — log is useful for count metrics, which are heavily right-skewed |
+| **Filters** | Classified only (named entities), Exclude redacted (profanity-replaced tokens) |
 | **Date range** | Drag the slider to zoom into any window within Jan 2013 – Jun 2023 |
-| **Entities** | Search-able multi-select over all 1,234 entities; quick-select buttons for the Top 5 / 10 / 20 by total post volume |
 
-### Charts
+### Overview tab (date.parquet)
 
-**Time series (top panel).** Selected entities plotted against the chosen
-metric across the filtered date range, with a unified hover tooltip for easy
-cross-entity comparison.
+Aggregate trends across all entities. No entity picker — everything is rolled
+up into a single line so you can see corpus-wide patterns and data gaps clearly.
 
-**Ranked bar (bottom-left).** Total metric value per entity aggregated over the
-selected date window, sorted ascending so the largest bar is always at the top.
+**Time series.** Total metric for all entities combined over the selected date range.
 
-**Sentiment scatter (bottom-right).** Each entity plotted in
-positive-sentiment × negative-sentiment space. Bubble size encodes post count.
-The dashed diagonal marks equal positive/negative sentiment; entities above it
-skew negative, below it skew positive.
+**Ranked bar.** Top-N entities by total metric over the date window.
+
+**Summary table.** Per-entity totals for the top-N entities in the date window.
+
+### Entity Deep Dive tab (entity.parquet)
+
+Per-entity comparison with full search and selection controls.
+
+**Entities.** Searchable multi-select over the top 200 entities by post count;
+quick-select buttons for Top 5 / 10 / 20. Entity scope radio switches between
+selected entities and all top-200 entities.
+
+**Time series.** Selected entities plotted against the chosen metric, with a
+unified hover tooltip for cross-entity comparison.
+
+**Ranked bar.** Total metric per entity aggregated over the selected date window.
+
+**Sentiment scatter.** Each entity plotted in positive-sentiment × negative-sentiment
+space, animated by month. Bubble size encodes post count. The dashed diagonal
+marks equal positive/negative sentiment.
 
 **Summary table.** Per-entity totals (posts, likes, shares) and mean sentiment
-scores for every entity visible in the current selection and date window.
+scores for the current selection and date window.
