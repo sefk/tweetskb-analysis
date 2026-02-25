@@ -14,7 +14,7 @@ Tabs:
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from dash import Dash, dcc, html, Input, Output, callback
+from dash import Dash, dcc, html, Input, Output, State, callback
 
 # ── Load & prep data ──────────────────────────────────────────────────────────
 df_date = pd.read_parquet("tweetskb_tables/date.parquet")
@@ -45,6 +45,29 @@ def _top_entity_names(dataset_key, bool_filters):
         .index.tolist()
     )
 
+
+def _all_entity_names(dataset_key, bool_filters):
+    """All entity names sorted by total post_count, no TOP_N cap."""
+    df = DATASETS[dataset_key]
+    if "classified" in bool_filters:
+        df = df[df["classified"]]
+    if "redacted" in bool_filters:
+        df = df[~df["redacted"]]
+    return (
+        df.groupby("entity")["post_count"]
+        .sum()
+        .sort_values(ascending=False)
+        .index.tolist()
+    )
+
+
+# Pre-compute the full entity list for every bool_filter combination so that
+# case-insensitive search across all entities doesn't re-run groupby on each
+# keystroke.
+_ENTITY_NAMES_FULL = {
+    frozenset(combo): _all_entity_names("entity", list(combo))
+    for combo in [[], ["classified"], ["redacted"], ["classified", "redacted"]]
+}
 
 top_entity_names_init = _top_entity_names("entity", _BOOL_DEFAULTS)
 
@@ -469,12 +492,36 @@ def _make_summary_table(sub):
     Input("btn-top5", "n_clicks"),
     Input("btn-top10", "n_clicks"),
     Input("btn-top20", "n_clicks"),
+    Input("entity-select", "search_value"),
+    State("entity-select", "value"),
 )
-def update_entity_options(bool_filters, n5, n10, n20):
-    from dash import ctx
+def update_entity_options(bool_filters, n5, n10, n20, search_value, current_value):
+    from dash import ctx, no_update
+    triggered = ctx.triggered_id
+
+    # Any trigger from the entity dropdown itself (typing or clearing the search
+    # box) must never reset the selection — only buttons and filter changes do.
+    if triggered == "entity-select":
+        names = _top_entity_names("entity", bool_filters)
+        if search_value:
+            # Case-insensitive substring match across ALL entities, capped at TOP_N.
+            all_names = _ENTITY_NAMES_FULL.get(
+                frozenset(bool_filters or []),
+                names,
+            )
+            needle = search_value.lower()
+            matched = [e for e in all_names if needle in e.lower()][:TOP_N]
+        else:
+            matched = names
+        # Always include currently selected entities in the options so Dash
+        # never silently drops them when the options list changes.
+        matched_set = set(matched)
+        extras = [e for e in (current_value or []) if e not in matched_set]
+        options = [{"label": e, "value": e} for e in matched + extras]
+        return options, no_update
+
     names = _top_entity_names("entity", bool_filters)
     options = [{"label": e, "value": e} for e in names]
-    triggered = ctx.triggered_id
     if triggered == "btn-top5":
         value = names[:5]
     elif triggered == "btn-top10":
