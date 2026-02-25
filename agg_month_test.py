@@ -24,7 +24,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from agg_month import process_month
 
 READY_DIR = Path(__file__).resolve().parent / "tweetskb_ready"
-VALID_SENTIMENT = frozenset({0.0, 0.25, 0.5, 0.75, 1.0})
 
 
 # ---------------------------------------------------------------------------
@@ -45,7 +44,7 @@ def raw_tweets(month):
 
     df = pq.read_table(
         str(tweets_path),
-        columns=["tweet_id", "likes", "shares", "positive_emotion", "negative_emotion"],
+        columns=["tweet_id", "likes", "shares"],
     ).to_pandas()
     df["likes"]  = df["likes"].fillna(0).astype("int64")
     df["shares"] = df["shares"].fillna(0).astype("int64")
@@ -79,33 +78,10 @@ def test_output_not_empty(output_df):
     assert len(output_df) > 0
 
 
-def test_no_duplicate_keys(output_df):
-    """Each (positive_sentiment, negative_sentiment) combination must be unique."""
-    key_cols = ["positive_sentiment", "negative_sentiment"]
-    dupes = output_df.duplicated(subset=key_cols)
-    assert not dupes.any(), (
-        f"Duplicate keys found:\n{output_df[dupes][key_cols]}"
-    )
-
-
-def test_sentiment_values_valid(output_df):
-    """All sentiment values must be in the canonical set {0.0, 0.25, 0.5, 0.75, 1.0}."""
-    bad_pos = ~output_df["positive_sentiment"].isin(VALID_SENTIMENT)
-    bad_neg = ~output_df["negative_sentiment"].isin(VALID_SENTIMENT)
-    assert not bad_pos.any(), (
-        f"Invalid positive_sentiment values: "
-        f"{sorted(output_df.loc[bad_pos, 'positive_sentiment'].unique())}"
-    )
-    assert not bad_neg.any(), (
-        f"Invalid negative_sentiment values: "
-        f"{sorted(output_df.loc[bad_neg, 'negative_sentiment'].unique())}"
-    )
-
-
-def test_row_count_at_most_25(output_df):
-    """Output must have at most 25 rows (5 × 5 sentiment combinations)."""
-    assert len(output_df) <= 25, (
-        f"Too many rows: {len(output_df)} (max is 25)"
+def test_row_count_is_one(output_df):
+    """Output must have exactly 1 row per month."""
+    assert len(output_df) == 1, (
+        f"Expected 1 row, got {len(output_df)}"
     )
 
 

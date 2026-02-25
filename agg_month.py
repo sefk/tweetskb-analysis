@@ -3,19 +3,16 @@
 agg_month.py
 
 Reads per-month tweet Parquet files from tweetskb_ready/ and produces a single
-aggregated dataset grouped only by sentiment — no entity handling.
+aggregated dataset — no entity handling, no sentiment breakdown.
 
 Output schema (month.parquet):
-  year_month              str      "YYYY-MM"  — primary key component
-  positive_sentiment      float32  emotion intensity: 0.0 | 0.25 | 0.5 | 0.75 | 1.0
-  negative_sentiment      float32  emotion intensity: 0.0 | 0.25 | 0.5 | 0.75 | 1.0
-  total_likes             int64    sum of likes for the group
-  total_shares            int64    sum of shares for the group
-  post_count              int64    count of tweets in the group
+  year_month              str    "YYYY-MM"  — primary key
+  total_likes             int64  sum of likes for the month
+  total_shares            int64  sum of shares for the month
+  post_count              int64  count of tweets in the month
 
-At most 25 rows per month (5 × 5 sentiment levels).  Every tweet in the
-tweets file contributes exactly once — there is no entity join and no row
-expansion.
+Exactly 1 row per month.  Every tweet in the tweets file contributes exactly
+once — there is no entity join and no row expansion.
 
 Compared with agg_date.py, this script is simpler to run and test: it needs
 only the _tweets.parquet files (no _entities.parquet), produces no redacted
@@ -131,7 +128,7 @@ def _write_checkpoint(rows: list, checkpoint_dir: Path, year_month: str) -> None
 # ---------------------------------------------------------------------------
 
 def process_month(args: tuple) -> list:
-    """Aggregate one month into at most 25 rows (5 × 5 sentiment levels).
+    """Aggregate one month into a single row.
 
     args: (year_month, tweets_path, slot_queue, stop_event)
       slot_queue is a Manager().Queue() that hands out tqdm position slots so
@@ -140,10 +137,8 @@ def process_month(args: tuple) -> list:
       worker checks it before each batch and returns [] (no partial results) so
       the month can be safely retried on the next run.
 
-    Every tweet in the tweets file contributes exactly one row to the output
-    (unlike agg_date.py, which expands tweets that mention multiple entities).
-    The total post_count across all output rows will exactly equal the number
-    of tweets in the input file.
+    Every tweet in the tweets file contributes exactly once.  The output
+    post_count will exactly equal the number of tweets in the input file.
 
     Returns a list of dicts ready to be passed to pd.DataFrame().
     """
@@ -156,8 +151,10 @@ def process_month(args: tuple) -> list:
     try:
         log.info("%s — starting", year_month)
 
-        # accum: (pos_val, neg_val) -> [likes_sum, shares_sum, count]
-        accum: dict = {}
+        # Running totals across all batches
+        total_likes:  int = 0
+        total_shares: int = 0
+        total_count:  int = 0
 
         pf = pq.ParquetFile(str(tweets_path))
         n_rows = pf.metadata.num_rows
@@ -173,7 +170,7 @@ def process_month(args: tuple) -> list:
 
         for batch_num, batch in enumerate(pf.iter_batches(
             batch_size=BATCH_SIZE,
-            columns=["tweet_id", "likes", "shares", "positive_emotion", "negative_emotion"],
+            columns=["tweet_id", "likes", "shares"],
         )):
             if stop_event.is_set():
                 log.warning(
@@ -184,51 +181,27 @@ def process_month(args: tuple) -> list:
                 return []
 
             df = batch.to_pandas()
-
-            # Sentiment levels: NaN → 0.0, then round to nearest 0.25 to
-            # snap any floating-point noise to the canonical quantized values.
-            df["positive_sentiment"] = (
-                df["positive_emotion"].fillna(0.0).mul(4).round().div(4)
-            ).astype("float32")
-            df["negative_sentiment"] = (
-                df["negative_emotion"].fillna(0.0).mul(4).round().div(4)
-            ).astype("float32")
-
             df["likes"]  = df["likes"].fillna(0).astype("int32")
             df["shares"] = df["shares"].fillna(0).astype("int32")
 
-            for key, grp in df.groupby(
-                ["positive_sentiment", "negative_sentiment"],
-                observed=True,
-            ):
-                k = (float(key[0]), float(key[1]))
-                if k not in accum:
-                    accum[k] = [0, 0, 0]
-                accum[k][0] += int(grp["likes"].sum())
-                accum[k][1] += int(grp["shares"].sum())
-                accum[k][2] += len(grp)
+            total_likes  += int(df["likes"].sum())
+            total_shares += int(df["shares"].sum())
+            total_count  += len(df)
 
             batch_bar.update(1)
 
         batch_bar.close()
 
-        # --- Flatten accumulator into row dicts ---
-        rows = []
-        total_tweets = 0
-        for (pos_val, neg_val), (likes, shares, count) in accum.items():
-            rows.append({
-                "year_month":         year_month,
-                "positive_sentiment": pos_val,
-                "negative_sentiment": neg_val,
-                "total_likes":        likes,
-                "total_shares":       shares,
-                "post_count":         count,
-            })
-            total_tweets += count
+        rows = [{
+            "year_month":  year_month,
+            "total_likes":  total_likes,
+            "total_shares": total_shares,
+            "post_count":   total_count,
+        }]
 
         elapsed = time.time() - t0
-        log.info("%s — done in %.1fs: %d tweets, %d output rows",
-                 year_month, elapsed, total_tweets, len(rows))
+        log.info("%s — done in %.1fs: %d tweets, 1 output row",
+                 year_month, elapsed, total_count)
         return rows
 
     except Exception:
@@ -246,7 +219,7 @@ def process_month(args: tuple) -> list:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Aggregate tweetskb_ready tweet Parquet files into a month-level "
-                    "sentiment summary (no entity handling)."
+                    "summary (no entity handling, no sentiment breakdown)."
     )
     parser.add_argument(
         "input",
@@ -425,15 +398,11 @@ def main() -> None:
 
     # --- Build final DataFrame and enforce clean dtypes ---
     df = pd.DataFrame(all_rows)
-    df = df.sort_values(
-        ["year_month", "positive_sentiment", "negative_sentiment"]
-    ).reset_index(drop=True)
+    df = df.sort_values("year_month").reset_index(drop=True)
 
-    df["positive_sentiment"] = df["positive_sentiment"].astype("float32")
-    df["negative_sentiment"] = df["negative_sentiment"].astype("float32")
-    df["total_likes"]        = df["total_likes"].astype("int64")
-    df["total_shares"]       = df["total_shares"].astype("int64")
-    df["post_count"]         = df["post_count"].astype("int64")
+    df["total_likes"]  = df["total_likes"].astype("int64")
+    df["total_shares"] = df["total_shares"].astype("int64")
+    df["post_count"]   = df["post_count"].astype("int64")
 
     df.to_parquet(output_path, index=False)
 

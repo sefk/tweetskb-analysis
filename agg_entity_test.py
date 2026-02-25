@@ -286,24 +286,26 @@ def test_top_entity_shares_sum(output_df, raw_data, top_entity_name, top_entity_
 
 
 def test_top_entity_positive_sentiment(output_df, raw_data, top_entity_name, top_entity_tweet_ids):
-    """The most-mentioned entity's positive_sentiment must equal the mean of quantized scores."""
+    """The most-mentioned entity's positive_sentiment must equal the mean of non-zero quantized scores."""
     tweets_df, _ = raw_data
-    relevant = tweets_df.loc[tweets_df["tweet_id"].isin(top_entity_tweet_ids), "positive_emotion"]
+    relevant  = tweets_df.loc[tweets_df["tweet_id"].isin(top_entity_tweet_ids), "positive_emotion"]
     quantized = relevant.fillna(0.0).mul(4).round().div(4)
-    expected = float(quantized.sum() / len(quantized))
-    actual   = float(output_df.loc[output_df["entity"] == top_entity_name, "positive_sentiment"].item())
+    nonzero   = quantized[quantized > 0]
+    expected  = float(nonzero.sum() / len(nonzero)) if len(nonzero) > 0 else 0.0
+    actual    = float(output_df.loc[output_df["entity"] == top_entity_name, "positive_sentiment"].item())
     assert abs(actual - expected) < 1e-4, (
         f"positive_sentiment for '{top_entity_name}': expected {expected:.6f}, got {actual:.6f}"
     )
 
 
 def test_top_entity_negative_sentiment(output_df, raw_data, top_entity_name, top_entity_tweet_ids):
-    """The most-mentioned entity's negative_sentiment must equal the mean of quantized scores."""
+    """The most-mentioned entity's negative_sentiment must equal the mean of non-zero quantized scores."""
     tweets_df, _ = raw_data
-    relevant = tweets_df.loc[tweets_df["tweet_id"].isin(top_entity_tweet_ids), "negative_emotion"]
+    relevant  = tweets_df.loc[tweets_df["tweet_id"].isin(top_entity_tweet_ids), "negative_emotion"]
     quantized = relevant.fillna(0.0).mul(4).round().div(4)
-    expected = float(quantized.sum() / len(quantized))
-    actual   = float(output_df.loc[output_df["entity"] == top_entity_name, "negative_sentiment"].item())
+    nonzero   = quantized[quantized > 0]
+    expected  = float(nonzero.sum() / len(nonzero)) if len(nonzero) > 0 else 0.0
+    actual    = float(output_df.loc[output_df["entity"] == top_entity_name, "negative_sentiment"].item())
     assert abs(actual - expected) < 1e-4, (
         f"negative_sentiment for '{top_entity_name}': expected {expected:.6f}, got {actual:.6f}"
     )

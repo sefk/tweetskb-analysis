@@ -3,10 +3,13 @@ TweetsKB Exploratory Data Analysis Dashboard
 
 Data: tweetskb_tables/date.parquet   (1,236 entities, 267 K rows)
       tweetskb_tables/entity.parquet  (81,850 entities, 1.24 M rows)
-Columns: year_month, entity, post_count, total_likes, total_shares,
-         positive_sentiment, negative_sentiment, redacted, classified
+      tweetskb_tables/month.parquet   (126 rows — one per month)
+Columns (date/entity): year_month, entity, post_count, total_likes, total_shares,
+                        positive_sentiment, negative_sentiment, redacted, classified
+Columns (month):       year_month, post_count, total_likes, total_shares
 
 Tabs:
+  Month Overview  — corpus-level monthly totals (month.parquet)
   Overview        — aggregate trends across all entities (date.parquet)
   Entity Deep Dive — per-entity comparison and sentiment scatter (entity.parquet)
 """
@@ -22,6 +25,9 @@ df_date["year_month"] = pd.to_datetime(df_date["year_month"], format="%Y-%m")
 
 df_entity = pd.read_parquet("tweetskb_tables/entity.parquet")
 df_entity["year_month"] = pd.to_datetime(df_entity["year_month"], format="%Y-%m")
+
+df_month = pd.read_parquet("tweetskb_tables/month.parquet")
+df_month["year_month"] = pd.to_datetime(df_month["year_month"], format="%Y-%m")
 
 DATASETS = {"date": df_date, "entity": df_entity}
 
@@ -88,12 +94,18 @@ METRICS = {
     "negative_sentiment": "Avg Negative Sentiment",
 }
 
+def _nonzero_mean(series):
+    """Mean excluding zero values.  Returns 0.0 if every value is zero."""
+    nonzero = series[series > 0]
+    return nonzero.mean() if len(nonzero) > 0 else 0.0
+
+
 AGGREGATIONS = {
     "post_count": "sum",
     "total_likes": "sum",
     "total_shares": "sum",
-    "positive_sentiment": "mean",
-    "negative_sentiment": "mean",
+    "positive_sentiment": _nonzero_mean,
+    "negative_sentiment": _nonzero_mean,
 }
 
 # ── App layout ────────────────────────────────────────────────────────────────
@@ -204,8 +216,27 @@ app.layout = html.Div(
         # Tabs
         dcc.Tabs(
             id="main-tabs",
-            value="overview",
+            value="month",
             children=[
+                # ── Month Overview tab ────────────────────────────────────────
+                dcc.Tab(
+                    label="Month Overview",
+                    value="month",
+                    children=[
+                        html.Div(
+                            style={"padding": "16px 24px 24px"},
+                            children=[
+                                html.P(
+                                    "Corpus-level monthly totals across all tweets — month.parquet. "
+                                    "No entity breakdown; bool filters and sentiment metrics do not apply.",
+                                    style={"fontSize": "13px", "color": "#666", "margin": "0 0 12px"},
+                                ),
+                                dcc.Graph(id="month-timeseries", style={"height": "420px"}),
+                            ],
+                        ),
+                    ],
+                ),
+
                 # ── Overview tab ──────────────────────────────────────────────
                 dcc.Tab(
                     label="Overview",
@@ -219,6 +250,7 @@ app.layout = html.Div(
                                     style={"fontSize": "13px", "color": "#666", "margin": "0 0 12px"},
                                 ),
                                 dcc.Graph(id="overview-timeseries", style={"height": "420px"}),
+                                dcc.Graph(id="overview-sentiment", style={"height": "280px", "marginTop": "16px"}),
                                 html.Div(
                                     style={
                                         "display": "grid",
@@ -431,8 +463,8 @@ def _make_summary_table(sub):
         Posts=("post_count", "sum"),
         Likes=("total_likes", "sum"),
         Shares=("total_shares", "sum"),
-        PosSentiment=("positive_sentiment", "mean"),
-        NegSentiment=("negative_sentiment", "mean"),
+        PosSentiment=("positive_sentiment", _nonzero_mean),
+        NegSentiment=("negative_sentiment", _nonzero_mean),
     ).reset_index().sort_values("Posts", ascending=False)
 
     summary["Likes"] = summary["Likes"].apply(lambda x: f"{x:,.0f}")
@@ -557,6 +589,45 @@ def update_overview_timeseries(metric, chart_type, yscale, date_range, bool_filt
 
 
 @callback(
+    Output("overview-sentiment", "figure"),
+    Input("date-slider", "value"),
+    Input("bool-filters", "value"),
+)
+def update_overview_sentiment(date_range, bool_filters):
+    sub = all_data("date", date_range, bool_filters)
+    grouped = (
+        sub.groupby("year_month")[["positive_sentiment", "negative_sentiment"]]
+        .agg(_nonzero_mean)
+        .reset_index()
+        .sort_values("year_month")
+    )
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=grouped["year_month"], y=grouped["positive_sentiment"],
+        name="Positive", mode="lines",
+        line=dict(color="#27ae60", width=2),
+    ))
+    fig.add_trace(go.Scatter(
+        x=grouped["year_month"], y=grouped["negative_sentiment"],
+        name="Negative", mode="lines",
+        line=dict(color="#e74c3c", width=2),
+    ))
+    fig.update_layout(
+        title="Average Sentiment over Time",
+        margin=dict(t=50, l=50, r=20, b=40),
+        plot_bgcolor="white",
+        paper_bgcolor="white",
+        hovermode="x unified",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        yaxis=dict(title="Avg Sentiment"),
+        xaxis=dict(title="Month"),
+    )
+    fig.update_xaxes(showgrid=False)
+    fig.update_yaxes(gridcolor="#eee")
+    return fig
+
+
+@callback(
     Output("overview-bar", "figure"),
     Input("metric-select", "value"),
     Input("date-slider", "value"),
@@ -649,8 +720,8 @@ def update_entity_scatter(entities, date_range, bool_filters, entity_scope):
         post_count=("post_count", "sum"),
         total_likes=("total_likes", "sum"),
         total_shares=("total_shares", "sum"),
-        positive_sentiment=("positive_sentiment", "mean"),
-        negative_sentiment=("negative_sentiment", "mean"),
+        positive_sentiment=("positive_sentiment", _nonzero_mean),
+        negative_sentiment=("negative_sentiment", _nonzero_mean),
     ).reset_index()
     summary["year_month"] = summary["year_month"].dt.strftime("%Y-%m")
 
@@ -703,6 +774,31 @@ def update_entity_table(entities, date_range, bool_filters, entity_scope):
             return html.P("Select entities above to see a summary table.")
         sub = filter_data("entity", entities, date_range, bool_filters)
     return _make_summary_table(sub)
+
+
+# Month Overview callbacks
+
+@callback(
+    Output("month-timeseries", "figure"),
+    Input("metric-select", "value"),
+    Input("chart-type", "value"),
+    Input("yscale", "value"),
+    Input("date-slider", "value"),
+)
+def update_month_timeseries(metric, chart_type, yscale, date_range):
+    if metric in ("positive_sentiment", "negative_sentiment"):
+        fig = go.Figure()
+        fig.update_layout(
+            title="Sentiment metrics are not available in month.parquet",
+            plot_bgcolor="white",
+            paper_bgcolor="white",
+        )
+        return fig
+    lo = ALL_MONTHS[date_range[0]]
+    hi = ALL_MONTHS[date_range[1]]
+    sub = df_month[(df_month["year_month"] >= lo) & (df_month["year_month"] <= hi)].copy()
+    sub["entity"] = "All tweets"
+    return _make_timeseries(sub.sort_values("year_month"), metric, chart_type, yscale)
 
 
 if __name__ == "__main__":

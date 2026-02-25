@@ -171,12 +171,11 @@ Compound primary key: `(year_month, positive_sentiment, negative_sentiment, enti
 
 ### agg_month.py
 
-Produces one row per `(year_month, positive_sentiment, negative_sentiment)`
-combination — at most 25 rows per month (5 × 5 sentiment levels).  No entity
-handling: every tweet contributes exactly once, so `sum(post_count)` for a
-month equals the total tweet count for that month.  Useful for testing (only
-needs `_tweets.parquet`, no `_entities.parquet`) and for time-series analysis
-where entity breakdown is not needed.
+Produces one row per month.  No entity handling and no sentiment breakdown:
+every tweet contributes exactly once, so `post_count` equals the total tweet
+count for that month.  Useful for testing (only needs `_tweets.parquet`, no
+`_entities.parquet`) and for lightweight time-series analysis where entity or
+sentiment breakdown is not needed.
 
 ```bash
 python agg_month.py [INPUT ...] [-o DIR]
@@ -192,24 +191,22 @@ python agg_month.py tweetskb_ready/month_2020-03_tweets.parquet -o /tmp/test
 
 #### Output schema — month.parquet
 
-Compound primary key: `(year_month, positive_sentiment, negative_sentiment)`.
+Primary key: `year_month`.  Exactly one row per month.
 
 | Column | Type | Description |
 |--------|------|-------------|
 | `year_month` | str | `"YYYY-MM"` derived from the source filename |
-| `positive_sentiment` | float32 | Quantized intensity: 0.0 \| 0.25 \| 0.5 \| 0.75 \| 1.0 |
-| `negative_sentiment` | float32 | Quantized intensity: 0.0 \| 0.25 \| 0.5 \| 0.75 \| 1.0 |
-| `total_likes` | int64 | Sum of likes for the group |
-| `total_shares` | int64 | Sum of shares for the group |
-| `post_count` | int64 | Number of tweets in the group |
+| `total_likes` | int64 | Sum of likes for the month |
+| `total_shares` | int64 | Sum of shares for the month |
+| `post_count` | int64 | Total number of tweets in the month |
 
 ### agg_entity.py
 
 Produces one row per `(entity, year_month)` pair — one row for every entity
 that appears in the month's entities file.  Sentiment columns are means across
-all tweets in the group rather than discrete levels.  Useful for entity-focused
-analysis where you want a single engagement and sentiment summary per entity per
-month.
+tweets that have a non-zero score for each axis (tweets with no detected emotion
+are excluded from the denominator).  Useful for entity-focused analysis where
+you want a single engagement and sentiment summary per entity per month.
 
 ```bash
 python agg_entity.py [INPUT ...] [-o DIR]
@@ -237,8 +234,8 @@ Compound primary key: `(entity, year_month)`.
 |--------|------|-------------|
 | `entity` | str | Entity name |
 | `year_month` | str | `"YYYY-MM"` derived from the source filename |
-| `positive_sentiment` | float32 | Mean positive emotion across tweets mentioning this entity |
-| `negative_sentiment` | float32 | Mean negative emotion across tweets mentioning this entity |
+| `positive_sentiment` | float32 | Mean positive emotion across tweets with non-zero positive score (0.0 if none) |
+| `negative_sentiment` | float32 | Mean negative emotion across tweets with non-zero negative score (0.0 if none) |
 | `total_likes` | int64 | Sum of likes for tweets mentioning this entity |
 | `total_shares` | int64 | Sum of shares for tweets mentioning this entity |
 | `post_count` | int64 | Number of (tweet × entity) pairs in the group |
@@ -282,15 +279,15 @@ source Parquet files so the tests do not depend on any prior pipeline run.
 | **Sentiment range** | `positive_sentiment` and `negative_sentiment` are each in [0.0, 1.0] (values are means, not quantized buckets) |
 | **Entity membership** | All entities are among the top-N for the month; distinct entity count ≤ `TOP_N_ENTITIES` |
 | **Total post_count** | Equals the number of unique `(tweet_id, top-entity)` pairs in the deduplicated join table |
-| **Per-entity correctness** | For the most-mentioned entity: `post_count`, `total_likes`, `total_shares`, and both sentiment means are verified exactly (sentiment uses 1e-4 tolerance for float accumulation) against values recomputed from raw data |
+| **Per-entity correctness** | For the most-mentioned entity: `post_count`, `total_likes`, `total_shares`, and both sentiment means are verified exactly (sentiment uses 1e-4 tolerance for float accumulation) against values recomputed from raw data; sentiment means are computed over non-zero-score tweets only |
 | **Global lower bounds** | Output `total_likes` and `total_shares` are ≥ the sums for tweets that mention any top-N entity |
 
 ### agg_month_test.py
 
 | Category | Tests |
 |---|---|
-| **Schema** | Output is not empty; no duplicate `(positive_sentiment, negative_sentiment)` keys; all sentiment values are in {0.0, 0.25, 0.5, 0.75, 1.0}; at most 25 rows; `post_count > 0`; `total_likes` and `total_shares` non-negative; `year_month` label is correct; no `entity`, `redacted`, or `classified` columns |
-| **Count / sum invariants** | `sum(post_count)` equals the exact tweet count in the input file; `sum(total_likes)` and `sum(total_shares)` match raw sums exactly (no row expansion, so equality — not just ≥) |
+| **Schema** | Output is not empty; exactly 1 row; `post_count > 0`; `total_likes` and `total_shares` non-negative; `year_month` label is correct; no `entity`, `redacted`, or `classified` columns |
+| **Count / sum invariants** | `post_count` equals the exact tweet count in the input file; `total_likes` and `total_shares` match raw sums exactly (no row expansion, so equality — not just ≥) |
 
 ### e2e_agg_test.py
 
@@ -406,6 +403,17 @@ Then open **http://localhost:8050**.
 | **Y-axis scale** | Linear or Log — log is useful for count metrics, which are heavily right-skewed |
 | **Filters** | Classified only (named entities), Exclude redacted (profanity-replaced tokens) |
 | **Date range** | Drag the slider to zoom into any window within Jan 2013 – Jun 2023 |
+
+> **Note:** The Filters control and sentiment metrics do not apply on the Month
+> Overview tab — `month.parquet` contains no entity or sentiment columns.
+
+### Month Overview tab (month.parquet) — default
+
+Corpus-level monthly totals with no entity or sentiment breakdown. Each month
+is a single row, so `post_count` equals the total tweet count for that month.
+
+**Time series.** Total post count, likes, or shares per month over the selected
+date range. Selecting a sentiment metric shows a "not available" placeholder.
 
 ### Overview tab (date.parquet)
 

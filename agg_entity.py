@@ -21,7 +21,11 @@ entities per month by unique tweet count are included.  A tweet that mentions
 multiple top-N entities is counted once per entity.
 
 Sentiment values are the mean of the quantized TweetsKB emotion scores
-(0.0 | 0.25 | 0.5 | 0.75 | 1.0) across all tweets in each group.
+(0.25 | 0.5 | 0.75 | 1.0) across tweets that have a non-zero score for
+that axis.  Tweets with no detected emotion (score 0.0) are excluded from
+the denominator so the average reflects actual sentiment signal, not
+dilution by the majority of neutral tweets.  If every tweet in the group
+has a zero score for an axis, the output value is 0.0.
 
 Performance & memory:
   - Spawns one worker per performance core (hw.perflevel0.logicalcpu on macOS).
@@ -183,7 +187,8 @@ def process_month(args: tuple) -> list:
       the month can be safely retried on the next run.
 
     Sentiment columns are the mean of the quantized TweetsKB emotion scores
-    across all tweets that mention each entity.
+    across tweets that have a non-zero score for each axis.  Tweets with no
+    detected emotion (score 0.0) are excluded from the denominator.
 
     Returns a list of dicts ready to be passed to pd.DataFrame().
     """
@@ -227,7 +232,12 @@ def process_month(args: tuple) -> list:
         )
 
         # --- Stream tweets in fixed-size batches and accumulate aggregates.
-        # accum: entity -> [likes_sum, shares_sum, count, pos_sum, neg_sum]
+        # accum: entity -> [likes_sum, shares_sum, count, pos_sum, neg_sum,
+        #                   pos_nz_count, neg_nz_count]
+        # pos_nz_count / neg_nz_count track how many tweets had a non-zero
+        # score for each sentiment axis; they are used as the denominators
+        # when computing the final means so that zero-emotion tweets do not
+        # dilute the average.
         accum: dict = {}
 
         pf = pq.ParquetFile(str(tweets_path))
@@ -284,12 +294,14 @@ def process_month(args: tuple) -> list:
             for key, grp in df.groupby("entity", observed=True):
                 e = str(key)
                 if e not in accum:
-                    accum[e] = [0, 0, 0, 0.0, 0.0]
+                    accum[e] = [0, 0, 0, 0.0, 0.0, 0, 0]
                 accum[e][0] += int(grp["likes"].sum())
                 accum[e][1] += int(grp["shares"].sum())
                 accum[e][2] += len(grp)
                 accum[e][3] += float(grp["positive_emotion"].sum())
                 accum[e][4] += float(grp["negative_emotion"].sum())
+                accum[e][5] += int((grp["positive_emotion"] > 0).sum())
+                accum[e][6] += int((grp["negative_emotion"] > 0).sum())
 
             log.info(
                 "%s — batch %d/%d done in %.1fs, %d entities so far",
@@ -303,12 +315,12 @@ def process_month(args: tuple) -> list:
         # --- Flatten accumulator into row dicts ---
         rows = []
         total_pairs = 0
-        for entity, (likes, shares, count, pos_sum, neg_sum) in accum.items():
+        for entity, (likes, shares, count, pos_sum, neg_sum, pos_nz, neg_nz) in accum.items():
             rows.append({
                 "entity":             entity,
                 "year_month":         year_month,
-                "positive_sentiment": float(pos_sum / count) if count else 0.0,
-                "negative_sentiment": float(neg_sum / count) if count else 0.0,
+                "positive_sentiment": float(pos_sum / pos_nz) if pos_nz else 0.0,
+                "negative_sentiment": float(neg_sum / neg_nz) if neg_nz else 0.0,
                 "total_likes":        likes,
                 "total_shares":       shares,
                 "post_count":         count,
