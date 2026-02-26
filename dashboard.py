@@ -561,7 +561,11 @@ app.layout = html.Div(
                                     "Animated scatter in sentiment space (positive vs. negative sentiment). "
                                     "Bubble size = post volume. Use the date-slider and bool-filters above "
                                     "to narrow the scope.",
-                                    style={"fontSize": "13px", "color": "#555", "marginBottom": "8px"},
+                                    style={"fontSize": "13px", "color": "#555", "marginBottom": "4px"},
+                                ),
+                                html.P(
+                                    "⚠️ This chart can be very slow to load.",
+                                    style={"fontSize": "13px", "color": "#b94a00", "marginBottom": "8px"},
                                 ),
                                 dcc.Graph(id="compare-dem-rep", style={"height": "660px"}),
                             ],
