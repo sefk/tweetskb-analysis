@@ -18,7 +18,8 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from dash import Dash, dcc, html, Input, Output, State, callback
+from dash import Dash, dcc, html, Input, Output, State, callback, no_update
+from urllib.parse import urlencode, parse_qs
 
 # ── Load & prep data ──────────────────────────────────────────────────────────
 df_date = pd.read_parquet("tweetskb_tables/date.parquet")
@@ -103,6 +104,51 @@ month_marks = {
     for i, m in enumerate(ALL_MONTHS)
     if m.month == 1
 }
+
+# ── URL parameter helpers ──────────────────────────────────────────────────────
+_N_MONTHS = len(ALL_MONTHS)
+
+_URL_DEFAULTS = {
+    "tab":     "month",
+    "metric":  "post_count",
+    "chart":   "line",
+    "yscale":  "linear",
+    "filters": "classified,redacted",
+    "date":    f"0-{_N_MONTHS - 1}",
+    "scope":   "selected",
+}
+
+
+def _build_search(tab, metric, chart, yscale, filters, date_range, scope, entities):
+    """Return a URL query string for the given filter state; omits defaults."""
+    p = {}
+    if tab != _URL_DEFAULTS["tab"]:
+        p["tab"] = tab
+    if metric != _URL_DEFAULTS["metric"]:
+        p["metric"] = metric
+    if chart != _URL_DEFAULTS["chart"]:
+        p["chart"] = chart
+    if yscale != _URL_DEFAULTS["yscale"]:
+        p["yscale"] = yscale
+    filters_str = ",".join(sorted(filters or []))
+    if filters_str != _URL_DEFAULTS["filters"]:
+        p["filters"] = filters_str
+    date_str = f"{date_range[0]}-{date_range[1]}"
+    if date_str != _URL_DEFAULTS["date"]:
+        p["date"] = date_str
+    if scope != _URL_DEFAULTS["scope"]:
+        p["scope"] = scope
+    if entities:
+        p["entities"] = ",".join(entities)
+    return ("?" + urlencode(p)) if p else ""
+
+
+def _parse_search(search):
+    """Parse a URL query string into a flat {key: first_value} dict."""
+    if not search:
+        return {}
+    return {k: v[0] for k, v in parse_qs(search.lstrip("?"), keep_blank_values=True).items()}
+
 
 METRICS = {
     "post_count": "Posts in Sample",
@@ -274,6 +320,14 @@ app.title = "TweetsKB EDA Dashboard"
 app.layout = html.Div(
     style={"fontFamily": "system-ui, sans-serif", "backgroundColor": "#f8f9fa"},
     children=[
+        # url-load-trigger fires once on page load; a clientside cb captures
+        # window.location.search into url-init-search (read-once, no feedback loop).
+        dcc.Store(id="url-load-trigger", data=True),
+        dcc.Store(id="url-init-search"),
+        dcc.Store(id="url-entity-init"),
+        dcc.Store(id="url-ready", data=False),  # set True once entity-select is initialised
+        dcc.Store(id="url-search-out"),   # current serialised query string
+        dcc.Store(id="_url-dummy"),        # throwaway target for clientside cb
         # Header
         html.Div(
             style={
@@ -738,16 +792,34 @@ def _make_summary_table(sub):
 @callback(
     Output("entity-select", "options"),
     Output("entity-select", "value"),
+    Output("url-ready", "data"),
     Input("bool-filters", "value"),
     Input("btn-top5", "n_clicks"),
     Input("btn-top10", "n_clicks"),
     Input("btn-top20", "n_clicks"),
     Input("entity-select", "search_value"),
+    Input("url-entity-init", "data"),
     State("entity-select", "value"),
+    prevent_initial_call=True,
 )
-def update_entity_options(bool_filters, n5, n10, n20, search_value, current_value):
-    from dash import ctx, no_update
+def update_entity_options(bool_filters, n5, n10, n20, search_value, url_entities, current_value):
+    from dash import ctx
     triggered = ctx.triggered_id
+
+    # URL-specified entities on initial load: restore selection from bookmark.
+    # url_entities == [] means "no URL entities — use the top-8 defaults".
+    # url_entities == list of names means "restore these specific entities".
+    # In both cases set url-ready=True to unblock sync_url.
+    if triggered == "url-entity-init":
+        names = _top_entity_names("entity", bool_filters)
+        if not url_entities:
+            # No entities in URL — initialise with top-8 defaults
+            options = [{"label": e, "value": e} for e in names]
+            return options, names[:8], True
+        names_set = set(names)
+        extras = [e for e in url_entities if e not in names_set]
+        options = [{"label": e, "value": e} for e in names + extras]
+        return options, url_entities, True
 
     # Typing/clearing in the search box: update options but never touch the selection.
     if triggered == "entity-select":
@@ -767,7 +839,7 @@ def update_entity_options(bool_filters, n5, n10, n20, search_value, current_valu
         matched_set = set(matched)
         extras = [e for e in (current_value or []) if e not in matched_set]
         options = [{"label": e, "value": e} for e in matched + extras]
-        return options, no_update
+        return options, no_update, no_update
 
     names = _top_entity_names("entity", bool_filters)
     # Always ensure currently selected entities appear in the options list even
@@ -788,11 +860,11 @@ def update_entity_options(bool_filters, n5, n10, n20, search_value, current_valu
         # so chart callbacks fire from their direct bool-filters Input rather
         # than from a value-change signal that may be suppressed when the top-N
         # list happens to be identical under the new filter.
-        return options, no_update
+        return options, no_update, no_update
     else:
-        # Initial load
+        # Initial load (should not normally reach here with prevent_initial_call=True)
         value = names[:8]
-    return options, value
+    return options, value, no_update
 
 
 # Entity Deep Dive callbacks
@@ -1042,7 +1114,12 @@ def update_overview_redacted(date_range):
 def update_compare_dem_rep(date_range, bool_filters):
     if not _ALL_PARTY_ENTITIES:
         return go.Figure()
-    sub = filter_data("entity", _ALL_PARTY_ENTITIES, date_range, bool_filters)
+    # The comparison chart pre-selects entities by keyword, so the "classified"
+    # filter must not be applied — most party entities are stored with
+    # classified=False and would be dropped, leaving only ~3 survivors.
+    # Still honour "redacted" to exclude profanity-replacement tokens.
+    party_filters = ["redacted"] if "redacted" in bool_filters else []
+    sub = filter_data("entity", _ALL_PARTY_ENTITIES, date_range, party_filters)
     if sub.empty:
         return go.Figure()
     summary = sub.groupby(["entity", "year_month"]).agg(
@@ -1069,6 +1146,15 @@ def update_compare_dem_rep(date_range, bool_filters):
         .sort_values("year_month")
     )
     summary["post_count"] = summary["post_count"].fillna(0)
+    summary["total_likes"] = summary["total_likes"].fillna(0)
+    summary["total_shares"] = summary["total_shares"].fillna(0)
+    # px.scatter drops rows with NaN x/y when building frame-0 traces, so
+    # entities absent from frame 0 never get a legend entry even after reindex.
+    # Fill ghost rows with sentinel coords outside chart bounds (clipped, invisible)
+    # so every entity gets a trace — and legend entry — in frame 0.
+    ghost = summary["positive_sentiment"].isna()
+    summary.loc[ghost, "positive_sentiment"] = -1.0
+    summary.loc[ghost, "negative_sentiment"] = -1.0
     fig = px.scatter(
         summary,
         x="positive_sentiment",
@@ -1107,6 +1193,135 @@ def update_compare_dem_rep(date_range, bool_filters):
         line=dict(color="#ccc", dash="dot", width=1),
     )
     return fig
+
+
+# ── URL ↔ filter sync ─────────────────────────────────────────────────────────
+
+@callback(
+    Output("main-tabs", "value"),
+    Output("metric-select", "value"),
+    Output("chart-type", "value"),
+    Output("yscale", "value"),
+    Output("bool-filters", "value"),
+    Output("date-slider", "value"),
+    Output("entity-scope", "value"),
+    Output("url-entity-init", "data"),
+    Input("url-init-search", "data"),
+)
+def apply_url_params(search):
+    """On page load, push query-param values into every filter component so a
+    bookmarked or shared URL is fully restored.  Uses url-init-search (populated
+    once by a clientside callback from window.location.search) rather than
+    dcc.Location to avoid the replaceState → re-fire feedback loop."""
+    p = _parse_search(search)
+
+    tab = p.get("tab", _URL_DEFAULTS["tab"])
+    if tab not in ("month", "entity", "analysis"):
+        tab = _URL_DEFAULTS["tab"]
+
+    metric = p.get("metric", _URL_DEFAULTS["metric"])
+    if metric not in METRICS:
+        metric = _URL_DEFAULTS["metric"]
+
+    chart = p.get("chart", _URL_DEFAULTS["chart"])
+    if chart not in ("line", "bar", "area"):
+        chart = _URL_DEFAULTS["chart"]
+
+    yscale = p.get("yscale", _URL_DEFAULTS["yscale"])
+    if yscale not in ("linear", "log"):
+        yscale = _URL_DEFAULTS["yscale"]
+
+    if "filters" in p:
+        valid_filters = {"classified", "redacted"}
+        filters = [f for f in p["filters"].split(",") if f in valid_filters]
+    else:
+        filters = list(_BOOL_DEFAULTS)
+
+    if "date" in p:
+        try:
+            lo, hi = map(int, p["date"].split("-"))
+            lo = max(0, min(lo, _N_MONTHS - 1))
+            hi = max(lo, min(hi, _N_MONTHS - 1))
+            date_val = [lo, hi]
+        except (ValueError, AttributeError):
+            date_val = [0, _N_MONTHS - 1]
+    else:
+        date_val = [0, _N_MONTHS - 1]
+
+    scope = p.get("scope", _URL_DEFAULTS["scope"])
+    if scope not in ("selected", "all"):
+        scope = _URL_DEFAULTS["scope"]
+
+    # Entities: always output to url-entity-init so update_entity_options
+    # (which now has prevent_initial_call=True) fires exactly once with the
+    # right set of entities.  An empty list signals "use top-8 defaults".
+    entities_str = p.get("entities", "")
+    entities_init = (
+        [e.strip() for e in entities_str.split(",") if e.strip()]
+        if entities_str else []
+    )
+
+    return tab, metric, chart, yscale, filters, date_val, scope, entities_init
+
+
+@callback(
+    Output("url-search-out", "data"),
+    Input("main-tabs", "value"),
+    Input("metric-select", "value"),
+    Input("chart-type", "value"),
+    Input("yscale", "value"),
+    Input("bool-filters", "value"),
+    Input("date-slider", "value"),
+    Input("entity-scope", "value"),
+    Input("entity-select", "value"),
+    Input("url-ready", "data"),
+    prevent_initial_call=True,
+)
+def sync_url(tab, metric, chart, yscale, filters, date_range, scope, entities, url_ready):
+    """Serialise filter state into url-search-out.  Blocked until url-ready is
+    True (set by update_entity_options once entity-select is initialised from
+    URL params) to prevent writing the top-8 default before initialisation
+    completes.  The clientside callback below pushes it to the browser address
+    bar via replaceState."""
+    if not url_ready:
+        return no_update
+    return _build_search(tab, metric, chart, yscale, filters, date_range, scope, entities)
+
+
+# ── One-shot URL capture ──────────────────────────────────────────────────────
+# Runs exactly once on page load: reads window.location.search and writes it
+# into url-init-search so that apply_url_params can restore filter state.
+# Using a Store trigger (not dcc.Location) avoids the replaceState feedback loop.
+app.clientside_callback(
+    """
+    function(_trigger) {
+        return window.location.search || '';
+    }
+    """,
+    Output("url-init-search", "data"),
+    Input("url-load-trigger", "data"),
+)
+
+# ── Live URL sync ─────────────────────────────────────────────────────────────
+# Push the query string to the browser address bar without triggering navigation.
+# replaceState does NOT fire popstate, but React Router (used by dcc.Location)
+# also listens via history.listen() which DOES catch replaceState.  Since
+# apply_url_params now reads url-init-search (one-shot) rather than dcc.Location,
+# a replaceState call can no longer re-trigger apply_url_params.
+app.clientside_callback(
+    """
+    function(search) {
+        if (search === null || search === undefined) return null;
+        window.history.replaceState(
+            null, '',
+            window.location.pathname + (search || '')
+        );
+        return null;
+    }
+    """,
+    Output("_url-dummy", "data"),
+    Input("url-search-out", "data"),
+)
 
 
 if __name__ == "__main__":
