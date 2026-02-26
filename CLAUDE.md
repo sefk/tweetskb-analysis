@@ -15,6 +15,7 @@ Key directories:
 - `tweetskb_data/` — raw N3 gzip files (symlinked to external drive)
 - `tweetskb_ready/` — per-month Parquet: `month_YYYY-MM_{tweets,entities,mentions}.parquet`
 - `tweetskb_tables/` — aggregated output: `date.parquet`, `entity.parquet`, `redacted.parquet`
+- `presentation/` — Google Slides export scripts (`export_slides.py`, `slides_helpers.py`) and one-off slide scripts
 
 Tech stack: Python 3.14, pandas, pyarrow, plotly, Dash, tqdm, better_profanity, pytest.
 
@@ -37,15 +38,18 @@ presentation"** throughout these instructions:
 When the user instructs Claude to push slides to the presentation, run:
 
 ```
-python export_slides.py 1foF5n95BJadZ3fQEziQO697c3KwIVdSr7Vd2XcmAElg
+python presentation/export_slides.py 1foF5n95BJadZ3fQEziQO697c3KwIVdSr7Vd2XcmAElg
 ```
 
 from the project root. No confirmation is needed before running this command.
 
 ### Adding custom slides
 
-To add a one-off slide, write a short Python script that uses `slides_helpers.py`
-and run it from the project root. Three slide types are available:
+All slide-related scripts live in `presentation/`. To add a one-off slide, write a
+short Python script in `presentation/` that uses `slides_helpers.py` and run it from
+the project root (e.g. `python presentation/my_script.py`). Because Python adds the
+script's directory to `sys.path`, the `from slides_helpers import ...` import works
+without any path manipulation. Three slide types are available:
 
 ```python
 from slides_helpers import add_chart_slide, add_text_slide, add_table_slide
