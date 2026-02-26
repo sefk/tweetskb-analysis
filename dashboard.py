@@ -335,12 +335,33 @@ app.layout = html.Div(
                 "color": "white",
                 "padding": "16px 24px",
                 "marginBottom": "16px",
+                "display": "flex",
+                "justifyContent": "space-between",
+                "alignItems": "center",
             },
             children=[
-                html.H2("TweetsKB EDA Dashboard", style={"margin": 0}),
-                html.P(
-                    f"{DATE_MIN.strftime('%Y-%m')} – {DATE_MAX.strftime('%Y-%m')}",
-                    style={"margin": "4px 0 0", "opacity": 0.7, "fontSize": "13px"},
+                html.Div(children=[
+                    html.H2("TweetsKB EDA Dashboard", style={"margin": 0}),
+                    html.P(
+                        f"{DATE_MIN.strftime('%Y-%m')} – {DATE_MAX.strftime('%Y-%m')}",
+                        style={"margin": "4px 0 0", "opacity": 0.7, "fontSize": "13px"},
+                    ),
+                ]),
+                html.Div(
+                    style={"textAlign": "right", "fontSize": "13px", "opacity": 0.85, "lineHeight": "1.8"},
+                    children=[
+                        html.Span("Data from the "),
+                        html.A("TweetsKB Project", href="https://data.gesis.org/tweetskb/", target="_blank",
+                               style={"color": "#aed6f1"}),
+                        html.Br(),
+                        html.Span("Source code and other info in "),
+                        html.A("Github", href="https://github.com/sefk/tweetskb-analysis", target="_blank",
+                               style={"color": "#aed6f1"}),
+                        html.Br(),
+                        html.Span("Owner: "),
+                        html.A("Sef Kloninger", href="https://sef.kloninger.com", target="_blank",
+                               style={"color": "#aed6f1"}),
+                    ],
                 ),
             ],
         ),
