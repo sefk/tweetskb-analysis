@@ -9,9 +9,8 @@ Columns (date/entity): year_month, entity, post_count, total_likes, total_shares
 Columns (month):       year_month, post_count, total_likes, total_shares
 
 Tabs:
-  Month Overview  — corpus-level monthly totals (month.parquet)
-  Overview        — aggregate trends across all entities (date.parquet)
-  Entity Deep Dive — per-entity comparison and sentiment scatter (entity.parquet)
+  Overview        — corpus-level monthly totals (month.parquet)
+  Slice by Entity — per-entity comparison and sentiment scatter (entity.parquet)
 """
 
 import pandas as pd
@@ -77,6 +76,23 @@ _ENTITY_NAMES_FULL = {
 
 top_entity_names_init = _top_entity_names("entity", _BOOL_DEFAULTS)
 
+# ── Party entity precomputation ────────────────────────────────────────────────
+def _party_entity_list(keyword):
+    totals = df_entity.groupby("entity")["post_count"].sum()
+    matched = totals[totals.index.str.lower().str.contains(keyword)]
+    return matched.sort_values(ascending=False).index.tolist()
+
+_DEM_ENTITIES = _party_entity_list("democrat")
+_REP_ENTITIES = _party_entity_list("republican")
+_ALL_PARTY_ENTITIES = _DEM_ENTITIES + _REP_ENTITIES
+
+_BLUES = ["#1e3a8a", "#1d4ed8", "#2563eb", "#3b82f6", "#60a5fa", "#93c5fd", "#bfdbfe", "#dbeafe"]
+_REDS  = ["#7f1d1d", "#991b1b", "#b91c1c", "#dc2626", "#ef4444", "#f87171", "#fca5a5", "#fee2e2"]
+_PARTY_COLOR_MAP = {
+    **{e: _BLUES[i % len(_BLUES)] for i, e in enumerate(_DEM_ENTITIES)},
+    **{e: _REDS[i % len(_REDS)]   for i, e in enumerate(_REP_ENTITIES)},
+}
+
 # Date range – identical across both datasets
 ALL_MONTHS = sorted(df_date["year_month"].unique())
 DATE_MIN, DATE_MAX = ALL_MONTHS[0], ALL_MONTHS[-1]
@@ -87,7 +103,7 @@ month_marks = {
 }
 
 METRICS = {
-    "post_count": "Post Count",
+    "post_count": "Posts in Sample",
     "total_likes": "Total Likes",
     "total_shares": "Total Shares",
     "positive_sentiment": "Avg Positive Sentiment",
@@ -220,7 +236,7 @@ app.layout = html.Div(
             children=[
                 # ── Month Overview tab ────────────────────────────────────────
                 dcc.Tab(
-                    label="Month Overview",
+                    label="Overview",
                     value="month",
                     children=[
                         html.Div(
@@ -232,37 +248,7 @@ app.layout = html.Div(
                                     style={"fontSize": "13px", "color": "#666", "margin": "0 0 12px"},
                                 ),
                                 dcc.Graph(id="month-timeseries", style={"height": "420px"}),
-                            ],
-                        ),
-                    ],
-                ),
-
-                # ── Overview tab ──────────────────────────────────────────────
-                dcc.Tab(
-                    label="Overview",
-                    value="overview",
-                    children=[
-                        html.Div(
-                            style={"padding": "16px 24px 24px"},
-                            children=[
-                                html.P(
-                                    "Aggregate trends across all entities — date.parquet.",
-                                    style={"fontSize": "13px", "color": "#666", "margin": "0 0 12px"},
-                                ),
-                                dcc.Graph(id="overview-timeseries", style={"height": "420px"}),
-                                dcc.Graph(id="overview-sentiment", style={"height": "280px", "marginTop": "16px"}),
-                                html.Div(
-                                    style={
-                                        "display": "grid",
-                                        "gridTemplateColumns": "1fr 1fr",
-                                        "gap": "16px",
-                                        "marginTop": "16px",
-                                    },
-                                    children=[
-                                        dcc.Graph(id="overview-bar", style={"height": "340px"}),
-                                        html.Div(id="overview-table"),
-                                    ],
-                                ),
+                                dcc.Graph(id="overview-redacted", style={"height": "300px", "marginTop": "16px"}),
                             ],
                         ),
                     ],
@@ -270,7 +256,7 @@ app.layout = html.Div(
 
                 # ── Entity Deep Dive tab ───────────────────────────────────────
                 dcc.Tab(
-                    label="Entity Deep Dive",
+                    label="Slice by Entity",
                     value="entity",
                     children=[
                         html.Div(
@@ -288,7 +274,7 @@ app.layout = html.Div(
                                             },
                                             children=[
                                                 html.Label(
-                                                    "Entities (select up to 20 to compare)",
+                                                    "Entities",
                                                     style=CONTROL_LABEL,
                                                 ),
                                                 html.Div([
@@ -340,16 +326,31 @@ app.layout = html.Div(
                                 html.Div(
                                     style={
                                         "display": "grid",
-                                        "gridTemplateColumns": "1fr 1fr",
+                                        "gridTemplateColumns": "1fr 1fr 1fr",
                                         "gap": "16px",
                                         "marginTop": "16px",
                                     },
                                     children=[
                                         dcc.Graph(id="entity-bar", style={"height": "340px"}),
                                         dcc.Graph(id="entity-scatter", style={"height": "340px"}),
+                                        dcc.Graph(id="entity-density", style={"height": "340px"}),
                                     ],
                                 ),
                                 html.Div(id="entity-table", style={"marginTop": "16px"}),
+                            ],
+                        ),
+                    ],
+                ),
+
+                # ── Comparisons tab ────────────────────────────────────────────
+                dcc.Tab(
+                    label="Comparisons",
+                    value="compare",
+                    children=[
+                        html.Div(
+                            style={"padding": "16px 24px 24px"},
+                            children=[
+                                dcc.Graph(id="compare-dem-rep", style={"height": "660px"}),
                             ],
                         ),
                     ],
@@ -531,8 +532,7 @@ def update_entity_options(bool_filters, n5, n10, n20, search_value, current_valu
     from dash import ctx, no_update
     triggered = ctx.triggered_id
 
-    # Any trigger from the entity dropdown itself (typing or clearing the search
-    # box) must never reset the selection — only buttons and filter changes do.
+    # Typing/clearing in the search box: update options but never touch the selection.
     if triggered == "entity-select":
         names = _top_entity_names("entity", bool_filters)
         if search_value:
@@ -553,99 +553,29 @@ def update_entity_options(bool_filters, n5, n10, n20, search_value, current_valu
         return options, no_update
 
     names = _top_entity_names("entity", bool_filters)
-    options = [{"label": e, "value": e} for e in names]
+    # Always ensure currently selected entities appear in the options list even
+    # if they fall outside the top-N under the current filters.
+    names_set = set(names)
+    extras = [e for e in (current_value or []) if e not in names_set]
+    options = [{"label": e, "value": e} for e in names + extras]
+
     if triggered == "btn-top5":
         value = names[:5]
     elif triggered == "btn-top10":
         value = names[:10]
     elif triggered == "btn-top20":
         value = names[:20]
+    elif triggered == "bool-filters":
+        # Filters changed: refresh options but preserve the current entity
+        # selection.  Returning no_update keeps entity-select.value unchanged
+        # so chart callbacks fire from their direct bool-filters Input rather
+        # than from a value-change signal that may be suppressed when the top-N
+        # list happens to be identical under the new filter.
+        return options, no_update
     else:
+        # Initial load
         value = names[:8]
     return options, value
-
-
-# Overview callbacks
-
-@callback(
-    Output("overview-timeseries", "figure"),
-    Input("metric-select", "value"),
-    Input("chart-type", "value"),
-    Input("yscale", "value"),
-    Input("date-slider", "value"),
-    Input("bool-filters", "value"),
-)
-def update_overview_timeseries(metric, chart_type, yscale, date_range, bool_filters):
-    agg_fn = AGGREGATIONS[metric]
-    sub = all_data("date", date_range, bool_filters)
-    grouped = (
-        sub.groupby("year_month")[metric]
-        .agg(agg_fn)
-        .reset_index()
-        .sort_values("year_month")
-    )
-    grouped["entity"] = "All entities"
-    return _make_timeseries(grouped, metric, chart_type, yscale)
-
-
-@callback(
-    Output("overview-sentiment", "figure"),
-    Input("date-slider", "value"),
-    Input("bool-filters", "value"),
-)
-def update_overview_sentiment(date_range, bool_filters):
-    sub = all_data("date", date_range, bool_filters)
-    grouped = (
-        sub.groupby("year_month")[["positive_sentiment", "negative_sentiment"]]
-        .agg(_nonzero_mean)
-        .reset_index()
-        .sort_values("year_month")
-    )
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=grouped["year_month"], y=grouped["positive_sentiment"],
-        name="Positive", mode="lines",
-        line=dict(color="#27ae60", width=2),
-    ))
-    fig.add_trace(go.Scatter(
-        x=grouped["year_month"], y=grouped["negative_sentiment"],
-        name="Negative", mode="lines",
-        line=dict(color="#e74c3c", width=2),
-    ))
-    fig.update_layout(
-        title="Average Sentiment over Time",
-        margin=dict(t=50, l=50, r=20, b=40),
-        plot_bgcolor="white",
-        paper_bgcolor="white",
-        hovermode="x unified",
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        yaxis=dict(title="Avg Sentiment"),
-        xaxis=dict(title="Month"),
-    )
-    fig.update_xaxes(showgrid=False)
-    fig.update_yaxes(gridcolor="#eee")
-    return fig
-
-
-@callback(
-    Output("overview-bar", "figure"),
-    Input("metric-select", "value"),
-    Input("date-slider", "value"),
-    Input("bool-filters", "value"),
-)
-def update_overview_bar(metric, date_range, bool_filters):
-    sub = all_data("date", date_range, bool_filters)
-    return _make_bar(sub, metric)
-
-
-@callback(
-    Output("overview-table", "children"),
-    Input("date-slider", "value"),
-    Input("bool-filters", "value"),
-)
-def update_overview_table(date_range, bool_filters):
-    sub = all_data("date", date_range, bool_filters)
-    return _make_summary_table(sub)
 
 
 # Entity Deep Dive callbacks
@@ -734,7 +664,7 @@ def update_entity_scatter(entities, date_range, bool_filters, entity_scope):
         animation_frame="year_month",
         animation_group="entity",
         hover_data=["total_likes", "total_shares", "post_count"],
-        title="Sentiment Space (bubble size = post count)",
+        title="Sentiment Space (bubble size = posts in sample)",
         labels={
             "positive_sentiment": "Avg Positive Sentiment",
             "negative_sentiment": "Avg Negative Sentiment",
@@ -776,6 +706,49 @@ def update_entity_table(entities, date_range, bool_filters, entity_scope):
     return _make_summary_table(sub)
 
 
+@callback(
+    Output("entity-density", "figure"),
+    Input("entity-select", "value"),
+    Input("date-slider", "value"),
+    Input("bool-filters", "value"),
+    Input("entity-scope", "value"),
+)
+def update_entity_density(entities, date_range, bool_filters, entity_scope):
+    if entity_scope == "all":
+        sub = all_data("entity", date_range, bool_filters)
+    else:
+        if not entities:
+            return go.Figure()
+        sub = filter_data("entity", entities, date_range, bool_filters)
+    # Drop rows with no sentiment signal (both zero means no data that month)
+    sub = sub[(sub["positive_sentiment"] > 0) | (sub["negative_sentiment"] > 0)]
+    if sub.empty:
+        return go.Figure()
+    fig = px.density_heatmap(
+        sub,
+        x="positive_sentiment",
+        y="negative_sentiment",
+        nbinsx=4,
+        nbinsy=4,
+        title="Sentiment Density (4×4)",
+        labels={
+            "positive_sentiment": "Avg Positive Sentiment",
+            "negative_sentiment": "Avg Negative Sentiment",
+        },
+        color_continuous_scale="Blues",
+    )
+    fig.update_layout(
+        margin=dict(t=50, l=50, r=20, b=40),
+        plot_bgcolor="white",
+        paper_bgcolor="white",
+        xaxis=dict(range=[-0.05, 1.05]),
+        yaxis=dict(range=[-0.05, 1.05]),
+    )
+    fig.update_xaxes(gridcolor="#eee")
+    fig.update_yaxes(gridcolor="#eee")
+    return fig
+
+
 # Month Overview callbacks
 
 @callback(
@@ -799,6 +772,124 @@ def update_month_timeseries(metric, chart_type, yscale, date_range):
     sub = df_month[(df_month["year_month"] >= lo) & (df_month["year_month"] <= hi)].copy()
     sub["entity"] = "All tweets"
     return _make_timeseries(sub.sort_values("year_month"), metric, chart_type, yscale)
+
+
+@callback(
+    Output("overview-redacted", "figure"),
+    Input("date-slider", "value"),
+)
+def update_overview_redacted(date_range):
+    lo = ALL_MONTHS[date_range[0]]
+    hi = ALL_MONTHS[date_range[1]]
+    sub = df_date[(df_date["year_month"] >= lo) & (df_date["year_month"] <= hi)]
+    totals = (
+        sub.groupby(["year_month", "redacted"])["post_count"]
+        .sum()
+        .reset_index()
+    )
+    month_totals = totals.groupby("year_month")["post_count"].sum().rename("month_total")
+    totals = totals.join(month_totals, on="year_month")
+    totals["pct"] = totals["post_count"] / totals["month_total"] * 100
+    totals["label"] = totals["redacted"].map({True: "Redacted", False: "Non-redacted"})
+    totals = totals.sort_values("year_month")
+
+    fig = px.area(
+        totals,
+        x="year_month",
+        y="pct",
+        color="label",
+        title="Redacted vs Non-redacted Entities — % of Posts",
+        labels={"year_month": "Month", "pct": "% of Posts", "label": ""},
+        color_discrete_map={"Redacted": "#e74c3c", "Non-redacted": "#3498db"},
+    )
+    fig.update_layout(
+        margin=dict(t=50, l=50, r=20, b=40),
+        plot_bgcolor="white",
+        paper_bgcolor="white",
+        hovermode="x unified",
+        yaxis=dict(range=[0, 100], ticksuffix="%"),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    )
+    fig.update_xaxes(showgrid=False)
+    fig.update_yaxes(gridcolor="#eee")
+    return fig
+
+
+# Comparisons callbacks
+
+@callback(
+    Output("compare-dem-rep", "figure"),
+    Input("date-slider", "value"),
+    Input("bool-filters", "value"),
+)
+def update_compare_dem_rep(date_range, bool_filters):
+    if not _ALL_PARTY_ENTITIES:
+        return go.Figure()
+    sub = filter_data("entity", _ALL_PARTY_ENTITIES, date_range, bool_filters)
+    if sub.empty:
+        return go.Figure()
+    summary = sub.groupby(["entity", "year_month"]).agg(
+        post_count=("post_count", "sum"),
+        total_likes=("total_likes", "sum"),
+        total_shares=("total_shares", "sum"),
+        positive_sentiment=("positive_sentiment", _nonzero_mean),
+        negative_sentiment=("negative_sentiment", _nonzero_mean),
+    ).reset_index()
+    summary["year_month"] = summary["year_month"].dt.strftime("%Y-%m")
+    # px.scatter with animation_frame creates traces only for entities present
+    # in the first frame.  Reindex to a full (entity × year_month) grid so
+    # every entity appears in every frame; missing months get NaN and are not
+    # rendered as points but keep the trace — and legend entry — alive.
+    all_ym = sorted(summary["year_month"].unique())
+    all_entities = summary["entity"].unique()
+    full_idx = pd.MultiIndex.from_product(
+        [all_entities, all_ym], names=["entity", "year_month"]
+    )
+    summary = (
+        summary.set_index(["entity", "year_month"])
+        .reindex(full_idx)
+        .reset_index()
+        .sort_values("year_month")
+    )
+    summary["post_count"] = summary["post_count"].fillna(0)
+    fig = px.scatter(
+        summary,
+        x="positive_sentiment",
+        y="negative_sentiment",
+        size="post_count",
+        color="entity",
+        animation_frame="year_month",
+        animation_group="entity",
+        hover_data=["total_likes", "total_shares", "post_count"],
+        title="Democrats vs. Republicans",
+        labels={
+            "positive_sentiment": "Avg Positive Sentiment",
+            "negative_sentiment": "Avg Negative Sentiment",
+            "year_month": "Month",
+        },
+        size_max=60,
+        range_x=[-0.05, 1.05],
+        range_y=[-0.05, 1.05],
+        color_discrete_map=_PARTY_COLOR_MAP,
+    )
+    fig.update_layout(
+        margin=dict(t=50, l=50, r=180, b=40),
+        plot_bgcolor="white",
+        paper_bgcolor="white",
+        legend=dict(
+            orientation="v",
+            x=1.02, xanchor="left",
+            y=1.0, yanchor="top",
+            font=dict(size=11),
+        ),
+    )
+    fig.update_xaxes(gridcolor="#eee")
+    fig.update_yaxes(gridcolor="#eee")
+    fig.add_shape(
+        type="line", x0=0, y0=0, x1=1, y1=1,
+        line=dict(color="#ccc", dash="dot", width=1),
+    )
+    return fig
 
 
 if __name__ == "__main__":
