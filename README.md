@@ -394,9 +394,38 @@ months have been processed.
 `dashboard.py` is an interactive Dash app for exploratory data analysis. It runs
 locally in your browser.
 
+**Development** (single-process, auto-reload):
 ```bash
 python dashboard.py
 ```
+
+**Production** (gunicorn, multi-process, background):
+```bash
+./server.sh start    # start gunicorn on port 8050, detached from terminal
+./server.sh stop     # graceful shutdown
+./server.sh status   # show PID and current state
+./server.sh help     # usage
+```
+
+Logs are written to `prod/gunicorn.log`. The server runs 1 worker with 4 threads
+(`gthread` worker class). It also sets `OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES`
+to suppress a macOS crash that occurs when gunicorn forks after numpy/pandas/pyarrow
+have initialized Objective-C runtime objects on background threads. This env var
+is a no-op on Linux.
+
+### The `prod/` directory
+
+Runtime files for the production server are isolated in `prod/` so they don't
+clutter the project root:
+
+| File | Description |
+|------|-------------|
+| `gunicorn.log` | Combined access + error log; appended on each start |
+| `gunicorn.pid` | PID of the running master process; removed on stop |
+
+`gunicorn.pid` is gitignored. `gunicorn.log` is covered by the root `*.log`
+rule. The directory itself (with a `.gitkeep`) is tracked so it exists on a
+fresh checkout.
 
 Then open **http://localhost:8050**.
 

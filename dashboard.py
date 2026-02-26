@@ -315,6 +315,7 @@ _fig_growth.update_yaxes(showgrid=False)
 
 # ── App layout ────────────────────────────────────────────────────────────────
 app = Dash(__name__)
+server = app.server  # expose Flask server for gunicorn
 app.title = "TweetsKB EDA Dashboard"
 
 app.layout = html.Div(

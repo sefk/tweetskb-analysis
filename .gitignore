@@ -4,4 +4,5 @@ tweetskb_ready
 __pycache__
 testout
 *.log
+prod/gunicorn.pid
 .ipynb_checkpoints/
