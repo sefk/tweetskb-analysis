@@ -27,6 +27,45 @@ Known data gaps:
 
 ---
 
+## Presentation
+
+The analysis is being presented in a Google Slides deck — referred to as **"the
+presentation"** throughout these instructions:
+
+> https://docs.google.com/presentation/d/1foF5n95BJadZ3fQEziQO697c3KwIVdSr7Vd2XcmAElg/edit
+
+When the user instructs Claude to push slides to the presentation, run:
+
+```
+python export_slides.py 1foF5n95BJadZ3fQEziQO697c3KwIVdSr7Vd2XcmAElg
+```
+
+from the project root. No confirmation is needed before running this command.
+
+### Adding custom slides
+
+To add a one-off slide, write a short Python script that uses `slides_helpers.py`
+and run it from the project root. Three slide types are available:
+
+```python
+from slides_helpers import add_chart_slide, add_text_slide, add_table_slide
+
+# Chart slide — renders any Plotly figure as a PNG
+add_chart_slide(fig, title="Slide Title", description="Optional body text")
+
+# Text/bullets slide — newline-separated items become bullet points
+add_text_slide(title="Key Findings", body="Finding one\nFinding two\nFinding three")
+
+# Table slide — pass a pre-filtered DataFrame
+add_table_slide(title="Top Entities", df=df.head(10), description="Optional text")
+```
+
+All three default to `PRESENTATION_ID` and append at the end of the deck.
+Pass `position=N` (0-based) to insert at a specific index instead.
+No confirmation is needed before running scripts that add slides to the presentation.
+
+---
+
 ## Global Constraints
 
 These apply to all personas regardless of task:

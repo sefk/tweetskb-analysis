@@ -4,6 +4,12 @@ This repo are scripts for processing data from the
 [TweetsKB](https://data.gesis.org/tweetskb/) dataset. TweetsKB is a public
 large-scale corpus of annotated tweets.
 
+This is the final project for the Stanford Continuing Education TECH 26 Data
+Visualization class, Winter 2026 session. A description of this work can also
+be found in [the presentation](https://docs.google.com/presentation/d/1foF5n95BJadZ3fQEziQO697c3KwIVdSr7Vd2XcmAElg/edit).
+
+Project owner: Sef Kloninger, sefklon@gmail.com
+
 Most of the code was written by Claude.
 
 ## Step 1: Download

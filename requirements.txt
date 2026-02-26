@@ -6,3 +6,11 @@ plotly
 pyarrow
 tqdm
 scipy
+matplotlib
+
+# create slides
+kaleido
+google-api-python-client
+google-auth-oauthlib
+google-auth-httplib2
+
