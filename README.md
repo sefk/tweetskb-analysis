@@ -445,3 +445,19 @@ marks equal positive/negative sentiment.
 
 **Summary table.** Per-entity totals (posts, likes, shares) and mean sentiment
 scores for the current selection and date window.
+
+### Analysis tab
+
+Pre-computed findings from the full corpus. All charts are static (computed
+once at startup from `entity.parquet` with default clean-data filters:
+`classified=True`, `redacted=False`). The tab is not affected by the shared
+controls above.
+
+| Section | Chart | Description |
+|---------|-------|-------------|
+| **Crypto & NFT Bubble** | Grouped bar by year | NFT, Ethereum, Bitcoin, Doge, Web3, DeFi, Binance — annual post volume showing the 2021–2022 crypto/NFT surge and the 2023 collapse |
+| **Pop Culture Moments** | Two line charts | Wordle's viral arc (peak Jan 2022, −97.5% over 16 months); BTS growth from 4 posts in Jan 2013 to ~903 K in May 2017 |
+| **COVID-19 Timeline** | Dual-axis bar+line | Monthly post volume (bars) and net sentiment (positive − negative, line on right axis) from Feb 2020 through Jun 2023 |
+| **Entity Sentiment** | Horizontal bar | Top 10 most positive and most negative entities among the top 200 by volume, ranked by volume-weighted net sentiment |
+| **Entity Growth** | Horizontal bar | Top 15 fastest-growing and 15 fastest-declining entities among the top 500 by volume, ranked by a normalized annualized OLS slope |
+| **Democrats vs. Republicans** | Animated sentiment scatter | Party-labeled entities in positive × negative sentiment space; bubble size = post count; animated by month. Responds to the date-slider and filters above. |

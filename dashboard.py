@@ -11,8 +11,10 @@ Columns (month):       year_month, post_count, total_likes, total_shares
 Tabs:
   Overview        — corpus-level monthly totals (month.parquet)
   Slice by Entity — per-entity comparison and sentiment scatter (entity.parquet)
+  Analysis        — pre-computed findings: crypto bubble, pop culture, COVID, sentiment/growth rankings
 """
 
+import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -123,6 +125,147 @@ AGGREGATIONS = {
     "positive_sentiment": _nonzero_mean,
     "negative_sentiment": _nonzero_mean,
 }
+
+# ── Analysis tab: pre-computed figures ───────────────────────────────────────
+_clean_ent = df_entity[df_entity["classified"] & ~df_entity["redacted"]]
+
+# --- Crypto/NFT bubble ---
+_crypto_names = ["nft", "nfts", "ethereum", "bitcoin", "doge", "web3", "defi", "binance"]
+_cr = _clean_ent[_clean_ent["entity"].isin(_crypto_names)].copy()
+_cr["year"] = _cr["year_month"].dt.year
+_cr_agg = _cr.groupby(["entity", "year"])["post_count"].sum().reset_index()
+_fig_crypto = px.bar(
+    _cr_agg, x="year", y="post_count", color="entity", barmode="group",
+    title="Crypto & NFT Entity Mentions by Year",
+    labels={"year": "Year", "post_count": "Posts", "entity": "Entity"},
+)
+_fig_crypto.update_layout(
+    plot_bgcolor="white", paper_bgcolor="white",
+    margin=dict(t=50, l=50, r=20, b=40),
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+)
+_fig_crypto.update_xaxes(showgrid=False)
+_fig_crypto.update_yaxes(gridcolor="#eee")
+
+# --- Wordle decay ---
+_wordle_df = _clean_ent[_clean_ent["entity"] == "wordle"].sort_values("year_month")
+_fig_wordle = px.line(
+    _wordle_df, x="year_month", y="post_count",
+    title="Wordle: Rise & Decay",
+    labels={"year_month": "Month", "post_count": "Posts"},
+    color_discrete_sequence=["#f59e0b"],
+)
+_fig_wordle.update_layout(
+    plot_bgcolor="white", paper_bgcolor="white",
+    margin=dict(t=50, l=50, r=20, b=40),
+)
+_fig_wordle.update_xaxes(showgrid=False)
+_fig_wordle.update_yaxes(gridcolor="#eee")
+
+# --- BTS growth ---
+_bts_df = _clean_ent[_clean_ent["entity"] == "bts"].sort_values("year_month")
+_fig_bts = px.line(
+    _bts_df, x="year_month", y="post_count",
+    title="BTS: K-pop Fandom Growth",
+    labels={"year_month": "Month", "post_count": "Posts"},
+    color_discrete_sequence=["#6366f1"],
+)
+_fig_bts.update_layout(
+    plot_bgcolor="white", paper_bgcolor="white",
+    margin=dict(t=50, l=50, r=20, b=40),
+)
+_fig_bts.update_xaxes(showgrid=False)
+_fig_bts.update_yaxes(gridcolor="#eee")
+
+# --- COVID-19 dual-axis ---
+_covid_df = _clean_ent[_clean_ent["entity"] == "covid 19"].sort_values("year_month").copy()
+_covid_df["net_sentiment"] = _covid_df["positive_sentiment"] - _covid_df["negative_sentiment"]
+_fig_covid = go.Figure()
+_fig_covid.add_trace(go.Bar(
+    x=_covid_df["year_month"], y=_covid_df["post_count"],
+    name="Posts", marker_color="#60a5fa", yaxis="y",
+))
+_fig_covid.add_trace(go.Scatter(
+    x=_covid_df["year_month"], y=_covid_df["net_sentiment"],
+    name="Net Sentiment (pos − neg)", mode="lines+markers",
+    marker_color="#ef4444", yaxis="y2",
+))
+_fig_covid.update_layout(
+    title="COVID-19: Volume & Net Sentiment Over Time",
+    plot_bgcolor="white", paper_bgcolor="white",
+    margin=dict(t=60, l=60, r=80, b=40),
+    yaxis=dict(title="Posts", gridcolor="#eee"),
+    yaxis2=dict(title="Net Sentiment", overlaying="y", side="right", showgrid=False),
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    hovermode="x unified",
+)
+_fig_covid.update_xaxes(showgrid=False)
+
+# --- Sentiment ranking (top 200 entities, vectorized weighted avg) ---
+_top200 = _clean_ent.groupby("entity")["post_count"].sum().nlargest(200).index
+_s_sub = _clean_ent[_clean_ent["entity"].isin(_top200)].copy()
+_s_sub["weighted_net"] = (_s_sub["positive_sentiment"] - _s_sub["negative_sentiment"]) * _s_sub["post_count"]
+_s_agg = _s_sub.groupby("entity").agg(
+    weighted_net=("weighted_net", "sum"),
+    total=("post_count", "sum"),
+).reset_index()
+_s_agg["net"] = _s_agg["weighted_net"] / _s_agg["total"]
+_sent_display = pd.concat([
+    _s_agg.sort_values("net").head(10),
+    _s_agg.sort_values("net").tail(10),
+])
+_fig_sentiment = px.bar(
+    _sent_display, x="net", y="entity", orientation="h",
+    title="Most Positive & Negative Entities (top 200 by volume)",
+    labels={"net": "Weighted Net Sentiment (pos − neg)", "entity": "Entity"},
+    color="net",
+    color_continuous_scale=["#e74c3c", "#f0f0f0", "#27ae60"],
+    color_continuous_midpoint=0,
+)
+_fig_sentiment.update_layout(
+    plot_bgcolor="white", paper_bgcolor="white",
+    margin=dict(t=60, l=120, r=20, b=40),
+    coloraxis_showscale=False,
+)
+_fig_sentiment.update_xaxes(gridcolor="#eee")
+_fig_sentiment.update_yaxes(showgrid=False)
+
+# --- Growth/decline (top 500, vectorized linear regression) ---
+_top500 = _clean_ent.groupby("entity")["post_count"].sum().nlargest(500).index
+_gs = _clean_ent[_clean_ent["entity"].isin(_top500)].copy()
+_gs["month_num"] = (_gs["year_month"] - _gs["year_month"].min()).dt.days.astype(float)
+_entity_mean = _gs.groupby("entity")["post_count"].transform("mean")
+_gs["y_norm"] = np.where(_entity_mean > 0, _gs["post_count"] / _entity_mean, np.nan)
+_gs["xc"] = _gs["month_num"] - _gs.groupby("entity")["month_num"].transform("mean")
+_gs["yc"] = _gs["y_norm"] - _gs.groupby("entity")["y_norm"].transform("mean")
+_gs["xc_yc"] = _gs["xc"] * _gs["yc"]
+_gs["xc2"] = _gs["xc"] ** 2
+_slope_agg = _gs.groupby("entity").agg(
+    cov=("xc_yc", "sum"),
+    var=("xc2", "sum"),
+    n=("post_count", "count"),
+).reset_index()
+_slope_agg = _slope_agg[(_slope_agg["var"] > 0) & (_slope_agg["n"] >= 6)].copy()
+_slope_agg["slope"] = _slope_agg["cov"] / _slope_agg["var"] * 365
+_growth_display = pd.concat([
+    _slope_agg.nsmallest(15, "slope"),
+    _slope_agg.nlargest(15, "slope"),
+])
+_fig_growth = px.bar(
+    _growth_display, x="slope", y="entity", orientation="h",
+    title="Fastest Growing & Declining Entities (top 500 by volume)",
+    labels={"slope": "Normalized Slope (annualized)", "entity": "Entity"},
+    color="slope",
+    color_continuous_scale=["#e74c3c", "#f0f0f0", "#27ae60"],
+    color_continuous_midpoint=0,
+)
+_fig_growth.update_layout(
+    plot_bgcolor="white", paper_bgcolor="white",
+    margin=dict(t=60, l=120, r=20, b=40),
+    coloraxis_showscale=False,
+)
+_fig_growth.update_xaxes(gridcolor="#eee")
+_fig_growth.update_yaxes(showgrid=False)
 
 # ── App layout ────────────────────────────────────────────────────────────────
 app = Dash(__name__)
@@ -342,14 +485,84 @@ app.layout = html.Div(
                     ],
                 ),
 
-                # ── Comparisons tab ────────────────────────────────────────────
+                # ── Analysis tab ───────────────────────────────────────────────
                 dcc.Tab(
-                    label="Comparisons",
-                    value="compare",
+                    label="Analysis",
+                    value="analysis",
                     children=[
                         html.Div(
-                            style={"padding": "16px 24px 24px"},
+                            style={"padding": "16px 24px 40px"},
                             children=[
+                                # Section 1: Crypto/NFT Bubble
+                                html.H3("Crypto & NFT Bubble", style={"marginBottom": "4px"}),
+                                html.P(
+                                    "NFT went from near-zero to 2.76 M posts in 2022, then collapsed 76% in 2023. "
+                                    "Bitcoin and Ethereum grew steadily from 2013; Doge spiked in 2021 with the "
+                                    "Elon Musk attention wave. Web3 and DeFi appeared only in 2021, peaking in "
+                                    "2022 alongside NFTs.",
+                                    style={"fontSize": "13px", "color": "#555", "marginBottom": "8px"},
+                                ),
+                                dcc.Graph(figure=_fig_crypto, style={"height": "380px"}),
+                                html.Hr(style={"margin": "24px 0"}),
+
+                                # Section 2: Pop Culture Moments
+                                html.H3("Pop Culture Moments", style={"marginBottom": "4px"}),
+                                html.P(
+                                    "Wordle peaked at ~100 K posts in early 2022 then lost 97.5% of its volume "
+                                    "in 16 months — a textbook viral-game arc. "
+                                    "BTS started with just 4 posts in Jan 2013, grew steadily, and peaked at "
+                                    "~903 K posts in May 2017 as the group broke into the global mainstream, "
+                                    "demonstrating sustained K-pop fandom amplification.",
+                                    style={"fontSize": "13px", "color": "#555", "marginBottom": "8px"},
+                                ),
+                                html.Div(
+                                    style={"display": "grid", "gridTemplateColumns": "1fr 1fr", "gap": "16px"},
+                                    children=[
+                                        dcc.Graph(figure=_fig_wordle, style={"height": "300px"}),
+                                        dcc.Graph(figure=_fig_bts, style={"height": "300px"}),
+                                    ],
+                                ),
+                                html.Hr(style={"margin": "24px 0"}),
+
+                                # Section 3: COVID-19 Timeline
+                                html.H3("COVID-19 Timeline", style={"marginBottom": "4px"}),
+                                html.P(
+                                    '"COVID 19" appeared in Feb 2020, exploded to 194 K posts in Apr 2020, then '
+                                    "faded over 3 years as news fatigue set in. Net sentiment (positive − negative) "
+                                    "briefly turned positive around the vaccine rollout in early 2021, then drifted "
+                                    "back negative as variants and pandemic exhaustion dominated discourse.",
+                                    style={"fontSize": "13px", "color": "#555", "marginBottom": "8px"},
+                                ),
+                                dcc.Graph(figure=_fig_covid, style={"height": "340px"}),
+                                html.Hr(style={"margin": "24px 0"}),
+
+                                # Section 4: Entity Sentiment & Growth
+                                html.H3("Entity Sentiment & Growth Trends", style={"marginBottom": "4px"}),
+                                html.P(
+                                    "Among the top 200 entities by volume, Tigray (Ethiopian civil war) and ISIS "
+                                    "score most negatively; 'laughing' scores negative because it often appears as "
+                                    "'laughing stock'. On the growth side, crypto terms (NFT, web3, ethereum) "
+                                    "dominate the fastest-growing entities from 2020–2023, while Wordle and COVID "
+                                    "are the fastest-declining on a normalized, annualized basis.",
+                                    style={"fontSize": "13px", "color": "#555", "marginBottom": "8px"},
+                                ),
+                                html.Div(
+                                    style={"display": "grid", "gridTemplateColumns": "1fr 1fr", "gap": "16px"},
+                                    children=[
+                                        dcc.Graph(figure=_fig_sentiment, style={"height": "500px"}),
+                                        dcc.Graph(figure=_fig_growth, style={"height": "500px"}),
+                                    ],
+                                ),
+                                html.Hr(style={"margin": "24px 0"}),
+
+                                # Section 5: Democrats vs Republicans
+                                html.H3("Democrats vs. Republicans", style={"marginBottom": "4px"}),
+                                html.P(
+                                    "Animated scatter in sentiment space (positive vs. negative sentiment). "
+                                    "Bubble size = post volume. Use the date-slider and bool-filters above "
+                                    "to narrow the scope.",
+                                    style={"fontSize": "13px", "color": "#555", "marginBottom": "8px"},
+                                ),
                                 dcc.Graph(id="compare-dem-rep", style={"height": "660px"}),
                             ],
                         ),
@@ -815,7 +1028,7 @@ def update_overview_redacted(date_range):
     return fig
 
 
-# Comparisons callbacks
+# Analysis tab callbacks
 
 @callback(
     Output("compare-dem-rep", "figure"),
