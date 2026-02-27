@@ -4,8 +4,13 @@ PIDFILE="prod/gunicorn.pid"
 ACCESS_LOG="prod/access.log"
 ERROR_LOG="prod/error.log"
 BIND="0.0.0.0:8050"
-WORKERS=1
-THREADS=8
+if [[ "$(uname)" == "Darwin" ]]; then
+    WORKERS=1
+    THREADS=4
+else
+    WORKERS=2
+    THREADS=16
+fi
 
 usage() {
     cat <<EOF

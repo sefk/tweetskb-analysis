@@ -407,11 +407,18 @@ python dashboard.py
 ./server.sh help     # usage
 ```
 
-Logs are written to `prod/gunicorn.log`. The server runs 1 worker with 4 threads
-(`gthread` worker class). It also sets `OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES`
-to suppress a macOS crash that occurs when gunicorn forks after numpy/pandas/pyarrow
-have initialized Objective-C runtime objects on background threads. This env var
-is a no-op on Linux.
+Logs are written to `prod/access.log` and `prod/error.log`. Worker and thread
+counts are selected automatically based on OS:
+
+| Platform | Workers | Threads | Notes |
+|----------|---------|---------|-------|
+| Linux (production) | 2 | 16 | More headroom for concurrent requests |
+| macOS (development) | 1 | 4 | Lightweight; mirrors the dev server |
+
+The server uses the `gthread` worker class. It also sets
+`OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES` to suppress a macOS crash that occurs
+when gunicorn forks after numpy/pandas/pyarrow have initialized Objective-C
+runtime objects on background threads. This env var is a no-op on Linux.
 
 ### The `prod/` directory
 
@@ -420,12 +427,13 @@ clutter the project root:
 
 | File | Description |
 |------|-------------|
-| `gunicorn.log` | Combined access + error log; appended on each start |
+| `access.log` | HTTP request log; appended on each start |
+| `error.log` | Worker errors and gunicorn startup messages; appended on each start |
 | `gunicorn.pid` | PID of the running master process; removed on stop |
 
-`gunicorn.pid` is gitignored. `gunicorn.log` is covered by the root `*.log`
-rule. The directory itself (with a `.gitkeep`) is tracked so it exists on a
-fresh checkout.
+`gunicorn.pid` is gitignored. `access.log` and `error.log` are covered by the
+root `*.log` rule. The directory itself (with a `.gitkeep`) is tracked so it
+exists on a fresh checkout.
 
 Then open **http://localhost:8050**.
 
