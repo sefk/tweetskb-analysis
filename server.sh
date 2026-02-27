@@ -35,6 +35,7 @@ cmd_start() {
         -w "$WORKERS" \
         --worker-class gthread \
         --threads "$THREADS" \
+        --timeout 120 \
         -b "$BIND" \
         --pid "$PIDFILE" \
         --access-logfile "$ACCESS_LOG" \
