@@ -180,10 +180,14 @@ _crypto_names = ["nft", "nfts", "ethereum", "bitcoin", "doge", "web3", "defi", "
 _cr = _clean_ent[_clean_ent["entity"].isin(_crypto_names)].copy()
 _cr["year"] = _cr["year_month"].dt.year
 _cr_agg = _cr.groupby(["entity", "year"])["post_count"].sum().reset_index()
+_cr_agg["year_label"] = _cr_agg["year"].astype(str)
+_cr_agg.loc[_cr_agg["year"] == 2023, "post_count"] *= 2
+_cr_agg.loc[_cr_agg["year"] == 2023, "year_label"] = "2023 (Annualized)"
 _fig_crypto = px.bar(
-    _cr_agg, x="year", y="post_count", color="entity", barmode="group",
+    _cr_agg, x="year_label", y="post_count", color="entity", barmode="group",
     title="Crypto & NFT Entity Mentions by Year",
-    labels={"year": "Year", "post_count": "Posts", "entity": "Entity"},
+    labels={"year_label": "Year", "post_count": "Posts", "entity": "Entity"},
+    category_orders={"year_label": [str(y) for y in sorted(_cr_agg["year"].unique()) if y != 2023] + ["2023 (Annualized)"]},
 )
 _fig_crypto.update_layout(
     plot_bgcolor="white", paper_bgcolor="white",
@@ -572,10 +576,12 @@ app.layout = html.Div(
                                 # Section 1: Crypto/NFT Bubble
                                 html.H3("Crypto & NFT Bubble", style={"marginBottom": "4px"}),
                                 html.P(
-                                    "NFT went from near-zero to 2.76 M posts in 2022, then collapsed 76% in 2023. "
-                                    "Bitcoin and Ethereum grew steadily from 2013; Doge spiked in 2021 with the "
-                                    "Elon Musk attention wave. Web3 and DeFi appeared only in 2021, peaking in "
-                                    "2022 alongside NFTs.",
+                                    "NFT went from near-zero to 2.76 M posts in 2022, then fell ~52% on an "
+                                    "annualized basis in 2023. Bitcoin and Ethereum grew "
+                                    "steadily from 2013; Doge spiked in 2021 with the Elon Musk attention wave. "
+                                    "Web3 and DeFi appeared only in 2021 and, unlike NFTs, were tracking higher "
+                                    "in H1 2023 than in full-year 2022 — the NFT bubble burst, but broader "
+                                    "crypto discourse did not.",
                                     style={"fontSize": "13px", "color": "#555", "marginBottom": "8px"},
                                 ),
                                 dcc.Graph(figure=_fig_crypto, style={"height": "380px"}),
@@ -605,8 +611,9 @@ app.layout = html.Div(
                                 html.P(
                                     '"COVID 19" appeared in Feb 2020, exploded to 194 K posts in Apr 2020, then '
                                     "faded over 3 years as news fatigue set in. Net sentiment (positive − negative) "
-                                    "briefly turned positive around the vaccine rollout in early 2021, then drifted "
-                                    "back negative as variants and pandemic exhaustion dominated discourse.",
+                                    "was negative throughout, but steadily improved as volume declined — reaching its "
+                                    "least-negative point (~−0.03) in late 2021 through early 2022, before drifting "
+                                    "more negative again as variants and pandemic exhaustion dominated discourse.",
                                     style={"fontSize": "13px", "color": "#555", "marginBottom": "8px"},
                                 ),
                                 dcc.Graph(figure=_fig_covid, style={"height": "340px"}),

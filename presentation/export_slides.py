@@ -33,10 +33,12 @@ from slides_helpers import (
 # ── Slide definitions ─────────────────────────────────────────────────────────
 
 _DESC_CRYPTO = (
-    "NFT went from near-zero to 2.76 M posts in 2022, then collapsed 76% in 2023. "
-    "Bitcoin and Ethereum grew steadily from 2013; Doge spiked in 2021 with the "
-    "Elon Musk attention wave. Web3 and DeFi appeared only in 2021, peaking in "
-    "2022 alongside NFTs."
+    "NFT went from near-zero to 2.76 M posts in 2022, then fell ~52% on an "
+    "annualized basis in 2023. Bitcoin and Ethereum grew "
+    "steadily from 2013; Doge spiked in 2021 with the Elon Musk attention wave. "
+    "Web3 and DeFi appeared only in 2021 and, unlike NFTs, were tracking higher "
+    "in H1 2023 than in full-year 2022 — the NFT bubble burst, but broader "
+    "crypto discourse did not."
 )
 _DESC_POP = (
     "Wordle peaked at ~100 K posts in early 2022 then lost 97.5% of its volume "
@@ -48,8 +50,9 @@ _DESC_POP = (
 _DESC_COVID = (
     '"COVID 19" appeared in Feb 2020, exploded to 194 K posts in Apr 2020, then '
     "faded over 3 years as news fatigue set in. Net sentiment (positive − negative) "
-    "briefly turned positive around the vaccine rollout in early 2021, then drifted "
-    "back negative as variants and pandemic exhaustion dominated discourse."
+    "was negative throughout, but steadily improved as volume declined — reaching its "
+    "least-negative point (~−0.03) in late 2021 through early 2022, before drifting "
+    "more negative again as variants and pandemic exhaustion dominated discourse."
 )
 _DESC_SENTIMENT = (
     "Among the top 200 entities by volume, Tigray (Ethiopian civil war) and ISIS "
