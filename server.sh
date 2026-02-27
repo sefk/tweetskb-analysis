@@ -5,7 +5,7 @@ ACCESS_LOG="prod/access.log"
 ERROR_LOG="prod/error.log"
 BIND="0.0.0.0:8050"
 WORKERS=1
-THREADS=4
+THREADS=8
 
 usage() {
     cat <<EOF
