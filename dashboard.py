@@ -673,7 +673,17 @@ app.layout = html.Div(
                                     style={"fontSize": "13px", "color": "#555", "marginBottom": "4px"},
                                 ),
                                 html.P(
-                                    "⚠️ This chart can be very slow to load.",
+                                    [
+                                        "⚠️ Warning this chart is slow to load, may take a minute! [",
+                                        html.A("bug",
+                                               href="https://github.com/sefk/tweetskb-analysis/issues/2",
+                                               target="_blank"),
+                                        "]; also the legend is missing most colors [",
+                                        html.A("bug",
+                                               href="https://github.com/sefk/tweetskb-analysis/issues/1",
+                                               target="_blank"),
+                                        "].",
+                                    ],
                                     style={"fontSize": "13px", "color": "#b94a00", "marginBottom": "8px"},
                                 ),
                                 dcc.Graph(id="compare-dem-rep", style={"height": "660px"}),
