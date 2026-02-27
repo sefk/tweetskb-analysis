@@ -12,6 +12,7 @@ Usage: $(basename "$0") <command>
 
 Commands:
   start   Start the gunicorn server in the background
+  reload  Gracefully reload workers (pick up new code)
   stop    Gracefully stop the running server
   status  Show server state and PID
   help    Show this message
@@ -35,6 +36,24 @@ cmd_start() {
         >> "$LOGFILE" 2>&1 &
 
     echo "Server started (PID $!), listening on $BIND, logging to $LOGFILE"
+}
+
+cmd_reload() {
+    if [ ! -f "$PIDFILE" ]; then
+        echo "No PID file found ($PIDFILE) — is the server running?"
+        exit 1
+    fi
+
+    PID=$(cat "$PIDFILE")
+
+    if ! kill -0 "$PID" 2>/dev/null; then
+        echo "Process $PID not found — removing stale PID file"
+        rm -f "$PIDFILE"
+        exit 1
+    fi
+
+    kill -HUP "$PID"
+    echo "Reload signal sent to master (PID $PID) — workers will restart with new code"
 }
 
 cmd_stop() {
@@ -77,6 +96,7 @@ cmd_status() {
 
 case "${1:-}" in
     start)  cmd_start ;;
+    reload) cmd_reload ;;
     stop)   cmd_stop ;;
     status) cmd_status ;;
     help|--help|-h) usage ;;
