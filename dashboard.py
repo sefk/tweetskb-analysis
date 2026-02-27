@@ -322,6 +322,32 @@ app = Dash(__name__)
 server = app.server  # expose Flask server for gunicorn
 app.title = "TweetsKB EDA Dashboard"
 
+app.index_string = """<!DOCTYPE html>
+<html>
+    <head>
+        {%metas%}
+        <title>{%title%}</title>
+        {%favicon%}
+        {%css%}
+        <!-- Google Analytics -->
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-WBWKEMHRC7"></script>
+        <script>
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-WBWKEMHRC7');
+        </script>
+    </head>
+    <body>
+        {%app_entry%}
+        <footer>
+            {%config%}
+            {%scripts%}
+            {%renderer%}
+        </footer>
+    </body>
+</html>"""
+
 app.layout = html.Div(
     style={"fontFamily": "system-ui, sans-serif", "backgroundColor": "#f8f9fa"},
     children=[
