@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
 PIDFILE="prod/gunicorn.pid"
-LOGFILE="prod/gunicorn.log"
+ACCESS_LOG="prod/access.log"
+ERROR_LOG="prod/error.log"
 BIND="0.0.0.0:8050"
 WORKERS=1
 THREADS=4
@@ -31,11 +32,13 @@ cmd_start() {
         --threads "$THREADS" \
         -b "$BIND" \
         --pid "$PIDFILE" \
-        --access-logfile "$LOGFILE" \
-        --error-logfile "$LOGFILE" \
-        >> "$LOGFILE" 2>&1 &
+        --access-logfile "$ACCESS_LOG" \
+        --error-logfile "$ERROR_LOG" \
+        >> "$ERROR_LOG" 2>&1 &
 
-    echo "Server started (PID $!), listening on $BIND, logging to $LOGFILE"
+    echo "Server started (PID $!), listening on $BIND"
+    echo "  Access log: $ACCESS_LOG"
+    echo "  Error log:  $ERROR_LOG"
 }
 
 cmd_reload() {
@@ -84,10 +87,11 @@ cmd_status() {
     PID=$(cat "$PIDFILE")
 
     if kill -0 "$PID" 2>/dev/null; then
-        echo "Status:  running"
-        echo "PID:     $PID"
-        echo "Bind:    $BIND"
-        echo "Log:     $LOGFILE"
+        echo "Status:     running"
+        echo "PID:        $PID"
+        echo "Bind:       $BIND"
+        echo "Access log: $ACCESS_LOG"
+        echo "Error log:  $ERROR_LOG"
     else
         echo "Status:  stopped (stale PID file — PID $PID no longer exists)"
         echo "PID file: $PIDFILE"
