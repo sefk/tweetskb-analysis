@@ -79,6 +79,8 @@ _ENTITY_NAMES_FULL = {
 
 top_entity_names_init = _top_entity_names("entity", _BOOL_DEFAULTS)
 
+_DEFAULT_ENTITIES = ["red sox", "astros"]
+
 # ── Party entity precomputation ────────────────────────────────────────────────
 def _party_entity_list(keyword):
     totals = df_entity.groupby("entity")["post_count"].sum()
@@ -542,7 +544,7 @@ app.layout = html.Div(
                                         dcc.Dropdown(
                                             id="entity-select",
                                             options=[{"label": e, "value": e} for e in top_entity_names_init],
-                                            value=top_entity_names_init[:8],
+                                            value=_DEFAULT_ENTITIES,
                                             multi=True,
                                             placeholder="Search and select entities...",
                                             style={"marginTop": "6px"},
@@ -878,9 +880,10 @@ def update_entity_options(bool_filters, n5, n10, n20, search_value, url_entities
     if triggered == "url-entity-init":
         names = _top_entity_names("entity", bool_filters)
         if not url_entities:
-            # No entities in URL — initialise with top-8 defaults
-            options = [{"label": e, "value": e} for e in names]
-            return options, names[:8], True
+            # No entities in URL — initialise with defaults
+            extras = [e for e in _DEFAULT_ENTITIES if e not in set(names)]
+            options = [{"label": e, "value": e} for e in names + extras]
+            return options, _DEFAULT_ENTITIES, True
         names_set = set(names)
         extras = [e for e in url_entities if e not in names_set]
         options = [{"label": e, "value": e} for e in names + extras]
