@@ -8,7 +8,7 @@ if [[ "$(uname)" == "Darwin" ]]; then
     WORKERS=1
     THREADS=4
 else
-    WORKERS=2
+    WORKERS=4
     THREADS=16
 fi
 
