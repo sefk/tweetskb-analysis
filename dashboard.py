@@ -361,6 +361,7 @@ app.layout = html.Div(
         dcc.Store(id="url-ready", data=False),  # set True once entity-select is initialised
         dcc.Store(id="url-search-out"),   # current serialised query string
         dcc.Store(id="_url-dummy"),        # throwaway target for clientside cb
+        dcc.Store(id="party-show-animation", data=False),
         # Header
         html.Div(
             style={
@@ -674,19 +675,40 @@ app.layout = html.Div(
                                     "to narrow the scope.",
                                     style={"fontSize": "13px", "color": "#555", "marginBottom": "4px"},
                                 ),
-                                html.P(
-                                    [
-                                        "⚠️ Warning this chart is slow to load, may take a minute! [",
-                                        html.A("bug",
-                                               href="https://github.com/sefk/tweetskb-analysis/issues/2",
-                                               target="_blank"),
-                                        "]; also the legend is missing most colors [",
-                                        html.A("bug",
-                                               href="https://github.com/sefk/tweetskb-analysis/issues/1",
-                                               target="_blank"),
-                                        "].",
+                                html.Div(
+                                    style={
+                                        "display": "flex",
+                                        "alignItems": "center",
+                                        "gap": "12px",
+                                        "marginBottom": "8px",
+                                    },
+                                    children=[
+                                        html.P(
+                                            [
+                                                "⚠️ Warning this chart is slow to load, may take a minute! [",
+                                                html.A("bug",
+                                                       href="https://github.com/sefk/tweetskb-analysis/issues/2",
+                                                       target="_blank"),
+                                                "]; also the legend is missing most colors [",
+                                                html.A("bug",
+                                                       href="https://github.com/sefk/tweetskb-analysis/issues/1",
+                                                       target="_blank"),
+                                                "].",
+                                            ],
+                                            style={"fontSize": "13px", "color": "#b94a00", "margin": 0},
+                                        ),
+                                        html.Button(
+                                            "Get animated version",
+                                            id="party-anim-btn",
+                                            n_clicks=0,
+                                            style={
+                                                "cursor": "pointer",
+                                                "padding": "4px 12px",
+                                                "fontSize": "12px",
+                                                "whiteSpace": "nowrap",
+                                            },
+                                        ),
                                     ],
-                                    style={"fontSize": "13px", "color": "#b94a00", "marginBottom": "8px"},
                                 ),
                                 dcc.Graph(id="compare-dem-rep", style={"height": "660px"}),
                             ],
@@ -1175,11 +1197,24 @@ def update_overview_redacted(date_range):
 # Analysis tab callbacks
 
 @callback(
+    Output("party-show-animation", "data"),
+    Input("party-anim-btn", "n_clicks"),
+    Input("date-slider", "value"),
+    Input("bool-filters", "value"),
+    prevent_initial_call=True,
+)
+def update_party_anim_store(n_clicks, date_range, bool_filters):
+    from dash import ctx
+    return ctx.triggered_id == "party-anim-btn"
+
+
+@callback(
     Output("compare-dem-rep", "figure"),
     Input("date-slider", "value"),
     Input("bool-filters", "value"),
+    Input("party-show-animation", "data"),
 )
-def update_compare_dem_rep(date_range, bool_filters):
+def update_compare_dem_rep(date_range, bool_filters, show_animation):
     if not _ALL_PARTY_ENTITIES:
         return go.Figure()
     # The comparison chart pre-selects entities by keyword, so the "classified"
@@ -1198,41 +1233,13 @@ def update_compare_dem_rep(date_range, bool_filters):
         negative_sentiment=("negative_sentiment", _nonzero_mean),
     ).reset_index()
     summary["year_month"] = summary["year_month"].dt.strftime("%Y-%m")
-    # px.scatter with animation_frame creates traces only for entities present
-    # in the first frame.  Reindex to a full (entity × year_month) grid so
-    # every entity appears in every frame; missing months get NaN and are not
-    # rendered as points but keep the trace — and legend entry — alive.
-    all_ym = sorted(summary["year_month"].unique())
-    all_entities = summary["entity"].unique()
-    full_idx = pd.MultiIndex.from_product(
-        [all_entities, all_ym], names=["entity", "year_month"]
-    )
-    summary = (
-        summary.set_index(["entity", "year_month"])
-        .reindex(full_idx)
-        .reset_index()
-        .sort_values("year_month")
-    )
-    summary["post_count"] = summary["post_count"].fillna(0)
-    summary["total_likes"] = summary["total_likes"].fillna(0)
-    summary["total_shares"] = summary["total_shares"].fillna(0)
-    # px.scatter drops rows with NaN x/y when building frame-0 traces, so
-    # entities absent from frame 0 never get a legend entry even after reindex.
-    # Fill ghost rows with sentinel coords outside chart bounds (clipped, invisible)
-    # so every entity gets a trace — and legend entry — in frame 0.
-    ghost = summary["positive_sentiment"].isna()
-    summary.loc[ghost, "positive_sentiment"] = -1.0
-    summary.loc[ghost, "negative_sentiment"] = -1.0
-    fig = px.scatter(
-        summary,
+
+    _scatter_kwargs = dict(
         x="positive_sentiment",
         y="negative_sentiment",
         size="post_count",
         color="entity",
-        animation_frame="year_month",
-        animation_group="entity",
         hover_data=["total_likes", "total_shares", "post_count"],
-        title="Democrats vs. Republicans",
         labels={
             "positive_sentiment": "Avg Positive Sentiment",
             "negative_sentiment": "Avg Negative Sentiment",
@@ -1243,6 +1250,43 @@ def update_compare_dem_rep(date_range, bool_filters):
         range_y=[-0.05, 1.05],
         color_discrete_map=_PARTY_COLOR_MAP,
     )
+
+    if not show_animation:
+        # Static: show only the final month in the selected range
+        last_month = summary["year_month"].max()
+        static_df = summary[summary["year_month"] == last_month].copy()
+        fig = px.scatter(
+            static_df,
+            title=f"Democrats vs. Republicans — {last_month}",
+            **_scatter_kwargs,
+        )
+    else:
+        # Animated: reindex to a full (entity × year_month) grid so every
+        # entity appears in every frame; missing months get NaN sentinel coords.
+        all_ym = sorted(summary["year_month"].unique())
+        all_entities = summary["entity"].unique()
+        full_idx = pd.MultiIndex.from_product(
+            [all_entities, all_ym], names=["entity", "year_month"]
+        )
+        summary = (
+            summary.set_index(["entity", "year_month"])
+            .reindex(full_idx)
+            .reset_index()
+            .sort_values("year_month")
+        )
+        summary["post_count"] = summary["post_count"].fillna(0)
+        summary["total_likes"] = summary["total_likes"].fillna(0)
+        summary["total_shares"] = summary["total_shares"].fillna(0)
+        ghost = summary["positive_sentiment"].isna()
+        summary.loc[ghost, "positive_sentiment"] = -1.0
+        summary.loc[ghost, "negative_sentiment"] = -1.0
+        fig = px.scatter(
+            summary,
+            animation_frame="year_month",
+            animation_group="entity",
+            title="Democrats vs. Republicans",
+            **_scatter_kwargs,
+        )
     fig.update_layout(
         margin=dict(t=50, l=50, r=180, b=40),
         plot_bgcolor="white",
